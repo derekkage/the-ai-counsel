@@ -160,6 +160,10 @@ docker compose up -d --build
 
 Docker layer caching means only changed layers rebuild. A typical upgrade (Python deps unchanged) takes under 30 seconds.
 
+### Migrating from LLM Council Plus
+
+If you're upgrading from the original `llm-council-plus` repo, see the full **[Migration Guide](MIGRATION.md)** — it covers Docker, local dev, MCP server re-registration, and skill symlinks. Your `data/` directory (settings, conversations, API keys) copies over directly with no schema changes.
+
 ---
 
 ## Persistence After Reboots

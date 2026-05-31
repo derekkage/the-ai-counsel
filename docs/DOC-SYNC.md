@@ -132,6 +132,7 @@ Document these consistently everywhere they appear:
 - [x] `+ New Council` switches to council mode from advisors — CHANGELOG, AGENTS
 - [x] `docs/DOC-SYNC.md` checklist — linked from README, AGENTS
 - [x] MCP tests for 10-tool API (139 tests)
+- [x] Migration guide (`docs/MIGRATION.md`) — linked from README and DOCKER.md
 
 ---
 

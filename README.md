@@ -237,6 +237,8 @@ Then open **http://YOUR_SERVER_IP:8001**. Conversations and settings persist to 
 
 For Ollama integration, reverse proxy setup, environment variables, and upgrade instructions, see **[docs/DOCKER.md](docs/DOCKER.md)**.
 
+> **Coming from LLM Council Plus?** See the **[Migration Guide](docs/MIGRATION.md)** for step-by-step upgrade instructions. Your data and configs carry over without changes.
+
 ### Network Access
 
 The start script exposes both frontend and backend on the network automatically:
