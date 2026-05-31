@@ -373,7 +373,7 @@ async def health_check(request: Request):
     scheme = request.headers.get("x-forwarded-proto", "http")
     return {
         "status": "ok",
-        "service": "LLM Council API",
+        "service": "The AI Counsel API",
         "mcp": {
             "sse_url": f"{scheme}://{host}/mcp/sse",
             "tools": 10,
@@ -387,7 +387,7 @@ async def root():
     index_path = os.path.join(FRONTEND_DIST_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
-    return {"status": "ok", "service": "LLM Council API"}
+    return {"status": "ok", "service": "The AI Counsel API"}
 
 
 @app.get("/api/conversations", response_model=List[ConversationMetadata])
