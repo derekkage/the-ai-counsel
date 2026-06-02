@@ -17,15 +17,15 @@ The The AI Counsel MCP server exposes **10 action-based tools**. Each tool group
 | [`council_settings`](#council_settings) | `get`, `update`, `list_presets`, `save_preset`, `delete_preset`, `set_default_preset` | Council config + presets |
 | [`advisor_settings`](#advisor_settings) | `get`, `update`, `list_presets`, `save_preset`, `delete_preset`, `set_default_preset` | Advisor defaults + presets |
 | [`personas`](#personas) | `list`, `get`, `update`, `reset` | Advisor persona CRUD |
-| [`conversations`](#conversations) | `list`, `get` | Saved conversation history |
+| [`conversations`](#conversations) | `list`, `get`, `progress` | Saved conversation history and active-run progress |
 | [`providers`](#providers) | `list_models`, `health`, `test`, `set_api_key`, `set_search` | Models, health, keys, search |
 | [`config_backup`](#config_backup) | `export`, `import`, `reset` | Full settings backup/restore |
 
 ## Cost Reports
 
-Deliberation tools return a `cost_report` object when a run performs model calls. It includes USD `total_cost`, token totals, call counts, known/unknown/estimated/free counts, `by_model`, `by_stage` where applicable, and raw `calls`.
+Deliberation tools return a `cost_report` object when a run performs model calls. It includes USD `total_cost`, `input_tokens`, `output_tokens`, `total_tokens`, call counts, known/unknown/estimated/free counts, `by_model`, `by_stage` where applicable, and raw `calls`.
 
-Cost attribution uses provider-reported cost first, then known-free rules (`ollama:*`, `nvidia:*`, OpenRouter `:free`, OpenCode custom endpoints), then cached catalog estimates from `ai-model-pricing.com` with LiteLLM as fallback. When pricing is unavailable, token usage is preserved and cost is marked unknown.
+Cost attribution uses provider-reported cost first, then known-free rules (`ollama:*`, `nvidia:*`, OpenRouter `:free`, `opencode-zen:*` free models, and custom endpoints whose configured URL points at the official `opencode.ai` host), then OpenCode pricing tables, then cached catalog estimates from `ai-model-pricing.com` with LiteLLM as fallback. Reasoning tokens are preserved in `usage.reasoning_tokens` and are billed as output tokens when the provider reports them that way. When pricing is unavailable, token usage is preserved and cost is marked unknown.
 
 ---
 
@@ -116,7 +116,9 @@ Run a multi-round advisor debate with named personas.
 }
 ```
 
-Response includes `cost_report` with total cost, token totals, call counts, and per-model breakdown. Advisor response, tiebreaker, and verdict rows include `usage` and `cost` when available.
+Response includes `cost_report` with total cost, input/output token totals, call counts, and per-model breakdown. Advisor response rows include `usage`, `cost`, `word_count`, `word_limit`, `word_limit_exceeded`, and an optional `warning`; over-limit responses are kept with a warning rather than failed. Tiebreaker and verdict rows include `usage` and `cost` when available.
+
+Advisor debates are best suited for decision, risk, tradeoff, prioritization, or strategy questions. For direct factual or creative answer generation, prefer `model_chat` or `council_deliberate`; advisor personas are prompted to argue and may overcomplicate simple prompts.
 
 ---
 

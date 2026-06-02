@@ -33,7 +33,7 @@ See [TOOLS.md](TOOLS.md) for all **10 tools** with actions, parameters, and exam
 
 **Model ID prefixes:** `openrouter`, `ollama`, `groq`, `openai`, `anthropic`, `google`, `mistral`, `deepseek`, `nvidia`, `custom`, `opencode-zen`, `opencode-go`.
 
-**Cost reporting:** every `council_deliberate`, `run_iterative_debate`, `advisor_debate`, and `model_chat` result carries a top-level `cost_report` (USD, per-model breakdown, free / known / unknown / estimated buckets). Pass it through to the user; do not re-derive spend on the client.
+**Cost reporting:** every `council_deliberate`, `run_iterative_debate`, `advisor_debate`, and `model_chat` result carries a top-level `cost_report` (USD, input/output token split, per-model breakdown, free / known / unknown / estimated buckets). Pass it through to the user; do not re-derive spend on the client.
 
 ## Examples
 

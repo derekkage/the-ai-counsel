@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Advisor live-progress and reconnect UX**: Advisor runs now publish active round/order/completion state through `/api/conversations/{id}/progress`, and the frontend can reconstruct in-flight advisor runs when navigating away and back.
+- **Cost token split in the UI and docs**: Run-cost panels now surface total, input, and output token counts separately for council and advisor runs, with reasoning tokens preserved in call details and billed as output where providers report them that way.
+- **Council-vs-Advisors guidance**: User and agent docs now clarify that Council is best for direct answers and synthesis, while Advisors are best for tradeoffs, risk reviews, strategy, ethics, prioritization, and real disagreement.
+
 ### Fixed
+- **Provider temperature restrictions**: Direct OpenAI, Anthropic, OpenRouter, and custom OpenAI-compatible calls now omit temperature for models that only accept provider defaults, preventing preflight failures such as unsupported `temperature: 0` or deprecated temperature parameters.
+- **Advisor word-limit handling**: Advisor responses that exceed the word-count guidance are now kept and surfaced with a warning instead of being treated as failed model responses.
+- **Hidden reasoning cleanup**: Council Stage 1, Stage 2, Stage 3, title generation, and search-query generation strip `<think>` blocks from visible/stored content so reasoning markup does not leak into conversation titles or final answers.
+- **Stage 2 detail matrix overflow**: Wide peer-review matrices now use horizontal scrolling with a sticky rater column so larger councils are not visually truncated.
+- **Conversation mode tagging**: Conversation history now normalizes/repairs Council vs Advisor modes so sidebar badges consistently render `CNC` and `ADV` with the intended color coding.
 - **Custom endpoint OpenCode free-detection now requires the official host**: A user who names a custom endpoint "opencode" but points it elsewhere was being silently zero-cost. The free heuristic now matches `opencode.ai` substring inside `endpoint_url` only — never the configured name or model text. (1B from v0.8.0 review.)
 - **OpenCode provider request robustness**: `query()` now sends `stream: False`, asserts the response is `application/json` before parsing, retries 429/timeout/remote-protocol errors with exponential backoff (`MAX_RETRIES=2`, initial delay 1s), and rejects embed/audio/tts model IDs up-front with a clear error (no HTTP call). Matches openrouter/ollama retry behavior. (R2/R3/R4.)
 - **Pricing catalog failure-throttle is now race-free**: `_get_pricing_catalog` resets its failure timestamp on a successful refresh so a transient outage doesn't lock the cache for the full throttle window. The `_catalog_failure_until = 0.0` reset runs inside the catalog lock. (R1.)

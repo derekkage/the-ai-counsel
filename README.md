@@ -22,6 +22,8 @@ The AI Counsel is a **dual-mode multi-model AI deliberation system**. Instead of
 - **🏛️ LLM Council** — Multiple AI models independently answer your question, anonymously peer-review each other's responses, and a chairman model synthesizes the collective wisdom into a final answer.
 - **🎭 LLM Advisors** — Named advisor personas (The Skeptic, The Strategist, The Ethicist, etc.) debate your question across configurable rounds, reaching consensus or voting to deliver a structured verdict with an action plan.
 
+**Choosing the right mode:** use **Council** for direct answers, creative prompts, factual questions, and "give me the best response" synthesis. Use **Advisors** when the question has real tradeoffs, disagreement, risk, strategy, ethics, prioritization, or a decision to make. Simple prompts such as "give me one amazing animal fact" are usually Council prompts; advisor personas will naturally turn them into a debate over criteria.
+
 <!-- Demo videos coming soon -->
 
 ---
@@ -120,6 +122,8 @@ Configure rounds (1–5), critique mode, and convergence threshold in **Settings
 
 A fundamentally different approach: named personas with distinct thinking styles argue your question in structured rounds.
 
+Advisor mode works best when there is something meaningful to debate: a strategic choice, a product decision, a risk review, an ethical question, or competing options. For simple answer generation, use Council mode instead.
+
 ```
 YOUR QUESTION (+ optional web search)
          │
@@ -208,6 +212,8 @@ Fine-tune creativity vs consistency per stage:
 - **Chairman Heat**: Final synthesis creativity (default: 0.4)
 - **Stage 2 Heat**: Peer ranking consistency (default: 0.3)
 
+Some provider/model combinations only accept their default temperature. The app automatically omits temperature for those models so preflight and runs do not fail on provider-specific temperature restrictions.
+
 ### Additional Features
 
 - **Live Progress Tracking** — See each model or advisor respond in real-time with streaming; reconnect to active runs via `GET /api/conversations/{id}/progress`
@@ -217,7 +223,7 @@ Fine-tune creativity vs consistency per stage:
 - **Abort Anytime** — Cancel in-progress requests
 - **Conversation History** — All conversations saved locally with search
 - **Customizable System Prompts** — Edit Stage 1, 2, and 3 prompts for Council mode
-- **Run Cost Reporting** — See total cost, tokens, call count, pricing confidence, and per-model breakdowns for council and advisor runs
+- **Run Cost Reporting** — See total cost, input/output token split, call count, pricing confidence, and per-model breakdowns for council and advisor runs
 - **Rate Limit Warnings** — Alerts when your config may hit API limits
 - **"I'm Feeling Lucky"** — Randomize your council composition
 - **Import & Export** — Backup and share your settings, API keys, and prompts

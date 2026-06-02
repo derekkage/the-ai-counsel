@@ -93,6 +93,8 @@ Watch as:
    - *(Optional)* Save your lineup as a **preset** from Model Assignment (personas, models, rounds, web search — not the debate question)
 4. Click **Start Debate** and watch the advisors debate each other by name, culminating in a structured consensus verdict with a recommended action plan!
 
+Use Advisors for questions with tradeoffs, risks, disagreement, prioritization, or a real decision to make. For simple answer generation ("give me one fact", "summarize this", "what is X?"), start with Council mode instead; Advisors are intentionally prompted to argue and may turn simple prompts into debates over criteria.
+
 ---
 
 ## 5. Deliberation Modes
@@ -113,6 +115,7 @@ Choose your deliberation type and depth:
 - **Mix model families** in the council for diverse perspectives (e.g., GPT + Claude + Gemini)
 - **Assign specific models to personas**: Give *The Skeptic* a highly detailed model (like Claude) and *The Pragmatist* a fast model (like Groq)
 - **Advisor presets**: Save recurring panels (e.g., "Startup Review") from Advisor Setup → Model Assignment
+- **Use Council for direct answers** and **Advisors for decisions/debates**. This keeps persona debate from overcomplicating simple prompts.
 - **Use Groq** for ultra-fast council inference
 - **Use Ollama** for unlimited, free local queries (great for local Chairman synthesis using a model like `granite4:1b`)
 - **"I'm Feeling Lucky"** randomizes your council composition

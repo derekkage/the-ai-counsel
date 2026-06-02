@@ -31,7 +31,7 @@ Server names vary by host: `the-ai-counsel`, `ai-counsel`, `user-the-ai-counsel`
 
 **Model ID prefixes:** `openrouter`, `ollama`, `groq`, `openai`, `anthropic`, `google`, `mistral`, `deepseek`, `nvidia`, `custom`, `opencode-zen`, `opencode-go`. `opencode-zen:*-free` is zero-cost; `opencode-go:*` is paid (subscription; the published per-1M price is shown as an estimate).
 
-**Result shape:** deliberation, debate, advisor, and `model_chat` results all include a top-level `cost_report` object (`total_cost`, `total_tokens`, `by_model`, `known_cost_calls`, `unknown_cost_calls`, `free_calls`, `has_unknown_costs`, `has_estimates`). Use it to surface spend to the user — do not re-implement bucketing.
+**Result shape:** deliberation, debate, advisor, and `model_chat` results all include a top-level `cost_report` object (`total_cost`, `input_tokens`, `output_tokens`, `total_tokens`, `by_model`, `known_cost_calls`, `unknown_cost_calls`, `free_calls`, `has_unknown_costs`, `has_estimates`). Use it to surface spend to the user — do not re-implement bucketing. Provider-reported reasoning tokens are preserved and included in billable output where applicable.
 
 ---
 
@@ -56,6 +56,10 @@ Server names vary by host: `the-ai-counsel`, `ai-counsel`, `user-the-ai-counsel`
 | List/read conversations | `conversations` → `list` / `get` |
 | Set search provider or API key | `providers` → `set_search` / `set_api_key` |
 | Backup / restore settings | `config_backup` → `export` / `import` / `reset` |
+
+---
+
+For simple direct-answer prompts, prefer `model_chat` or `council_deliberate`. Use `advisor_debate` when the user wants named personas to work through a decision, risk review, tradeoff, prioritization, strategy, ethics, or genuine disagreement.
 
 ---
 

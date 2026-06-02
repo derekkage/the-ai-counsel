@@ -13,6 +13,8 @@ The AI Counsel has two operating modes:
 - **Council mode** — 3-stage multi-LLM deliberation: individual responses → anonymous peer ranking → chairman synthesis
 - **Advisor mode** — Named personas debate a question across configurable rounds, reaching consensus or delivering a structured verdict
 
+Use **Council** for direct answers, creative prompts, factual questions, and "give me the best response" synthesis. Use **Advisor** only when the user wants named personas to debate a decision, tradeoff, risk review, prioritization, strategy, ethics, or genuine disagreement. Simple prompts can drift off-topic in Advisor mode because advisor prompts intentionally force positions, rebuttals, consensus scoring, and verdicts.
+
 **Transport rule (read first):** If The AI Counsel **MCP tools are available** in your session, **call them** — do **not** shell out to `curl` for the same operation. This skill’s REST sections are the **fallback reference** when MCP is missing, the SSE session is stale, or you need raw SSE/admin export.
 
 **MCP server (v0.8.0):** Built-in SSE at `http://localhost:8001/mcp/sse` (stdio: `python -m the_ai_counsel_mcp`). Exposes **10 action-based tools** (not 25). Verify via `GET /api/health` → `"mcp": {"tools": 10, "sse_url": "..."}`.
@@ -172,15 +174,23 @@ REST/MCP agents listing models should call the model list endpoints directly (`/
 All council runs, iterative council debates, advisor debates, `/api/ask` responses, saved conversation metadata, and MCP deliberation outputs expose cost data:
 
 - Per model call: `usage` (normalized token counts) and `cost` (provider, tokens, USD cost, pricing source, confidence, status).
-- Per run: `cost_report` with total USD cost, token totals, call totals, known/unknown/estimated/free counts, breakdown by model and stage, and raw call rows.
+- Per run: `cost_report` with total USD cost, input/output/total token totals, call totals, known/unknown/estimated/free counts, breakdown by model and stage, and raw call rows.
+
+Token semantics:
+
+- `input_tokens` are prompt/context tokens.
+- `output_tokens` are visible generated output tokens.
+- `reasoning_tokens` are preserved inside `usage` and call rows when providers report them. When providers bill reasoning as output, the estimated output cost includes those reasoning tokens.
+- `total_tokens` is the provider-reported total when available; otherwise it falls back to input plus output.
 
 Pricing order:
 
 1. Provider-reported cost when available. OpenRouter `usage.cost` / `usage.total_cost` is treated as known.
-2. Known-free rules report `$0`: `ollama:*`, `nvidia:*`, OpenRouter models ending in `:free`, and custom endpoints whose configured name/URL/model text indicates OpenCode Zen or OpenCode Go.
-3. Catalog estimate from `https://ai-model-pricing.com/api/v1/pricing.json`, cached locally in `data/model_pricing_cache.json`.
-4. Fallback catalog estimate from LiteLLM's `model_prices_and_context_window.json`.
-5. If usage is present but pricing cannot be matched, the report preserves token usage and marks cost as unknown.
+2. Known-free rules report `$0`: `ollama:*`, `nvidia:*`, OpenRouter models ending in `:free`, the known free `opencode-zen:*` models, and custom endpoints whose configured `endpoint_url` contains the official `opencode.ai` host.
+3. OpenCode hardcoded pricing table for paid OpenCode Go and Zen models (`pricing_source: "table:opencode"`, `cost_status: "estimated"`).
+4. Catalog estimate from `https://ai-model-pricing.com/api/v1/pricing.json`, cached locally in `data/model_pricing_cache.json`.
+5. Fallback catalog estimate from LiteLLM's `model_prices_and_context_window.json`.
+6. If usage is present but pricing cannot be matched, the report preserves token usage and marks cost as unknown.
 
 Environment overrides:
 
@@ -471,6 +481,8 @@ All fields are optional — only provided fields are updated. Requires minimum 1
 | `chairman_temperature` | `0.4` | Stage 3 synthesis creativity |
 | `stage2_temperature` | `0.3` | Stage 2 ranking consistency (lower = more deterministic) |
 
+Provider note: some models only accept their default temperature. The backend omits temperature automatically for known restricted models so preflight and calls do not fail on provider-specific `temperature` validation.
+
 ---
 
 ### 10. Configure System Prompts, Search Tuning, and Provider Toggles
@@ -701,6 +713,8 @@ curl -X DELETE http://localhost:8001/api/personas/skeptic/override
 
 Personas debate your question across configurable rounds, then a neutral model produces a verdict.
 
+Use this for questions that need disagreement, tradeoff analysis, prioritization, risk review, strategy, ethics, or a decision. For simple answer generation, prefer `model_chat` or `council_deliberate`; the advisor prompt design intentionally creates positions and rebuttals.
+
 ```python
 import asyncio, httpx, json
 
@@ -760,6 +774,8 @@ print("Verdict:", result["verdict"]["content"])
 | `max_rounds` | integer | No | `advisor_default_rounds` setting | Number of rounds (3–10) |
 | `web_search` | boolean | No | `false` | Enable web search context |
 | `search_provider` | string | No | — | `duckduckgo`, `tavily`, `brave`, `serper`, `tinyfish` |
+
+Advisor response rows include `word_count`, `word_limit`, `word_limit_exceeded`, and optional `warning`. Exceeding the word limit is treated as guidance failure, not a model failure: the response is kept and surfaced with a warning.
 
 **`advisor_complete` event data:**
 
@@ -1276,7 +1292,7 @@ curl -X PUT http://localhost:8001/api/settings \
 | `advisor_search_complete` | After web search | `data`: `{search_query}` |
 | `advisor_debate_start` | Debate initialized | `data`: `{personas, max_rounds, question, web_search}` |
 | `advisor_round_start` | Each round begins | `data`: `{round_number, order, is_parallel}` |
-| `advisor_response` | Each persona responds | `data`: `{persona_id, persona_name, model, content, error, consensus, usage, cost}`, `round`, `count`, `total` |
+| `advisor_response` | Each persona responds | `data`: `{persona_id, persona_name, model, content, error, warning, consensus, consensus_score, word_count, word_limit, word_limit_exceeded, usage, cost}`, `round`, `count`, `total` |
 | `advisor_round_complete` | Round finishes | `data`: `{round_number, responses, consensus_votes, consensus_reached}` |
 | `advisor_tiebreaker_start` | Tiebreaker triggered (2 personas, no consensus) | — |
 | `advisor_tiebreaker` | Tiebreaker result | `data`: `{model, content, error, usage, cost}` |

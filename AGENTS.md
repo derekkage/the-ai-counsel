@@ -239,6 +239,8 @@ GET /api/conversations/{id}/progress
 ```
 Frontend uses this to reconnect to in-progress runs when navigating back to a conversation. The progress data is held in-memory (`_active_runs` dict in `main.py`) and cleared when the streaming handler completes.
 
+Advisor runs are also tracked in `_active_runs`: progress includes advisor round/order/completion state, partial rounds, tiebreaker/verdict phases, and returns `{active: false}` after completion.
+
 ### Council Debate (Multi-Round)
 ```
 POST /api/conversations/{id}/message/debate
@@ -255,6 +257,7 @@ Every council, iterative debate, and advisor run should carry:
 - Per-call `usage` and `cost` fields on model response objects when the provider returns usage.
 - A run-level `metadata.cost_report` in stored conversations and stream completion events.
 - A top-level `cost_report` from JSON endpoints and MCP tools.
+- Cost reports expose `input_tokens`, `output_tokens`, `total_tokens`, calls, estimates/free/unknown buckets, and per-model/stage rows. Provider-reported reasoning tokens are preserved and billed as output when the provider reports them that way.
 
 `backend/costs.py` is the single attribution path. It normalizes token usage from OpenAI-compatible, Anthropic, Google, and Ollama response formats, then prices calls in this order:
 1. Provider-reported cost, currently OpenRouter `usage.cost` / `usage.total_cost`.
@@ -264,6 +267,10 @@ Every council, iterative debate, and advisor run should carry:
 5. Unknown cost with token usage preserved when pricing is unavailable.
 
 Catalog data is cached at `data/model_pricing_cache.json`; TTL is `LLM_COUNCIL_PRICING_CACHE_TTL_SECONDS` (default `86400`). Custom endpoints are only zero-cost when known-free; otherwise they use upstream model estimates when a catalog match exists and mark the cost as estimated.
+
+## Advisors vs Council Fit
+
+Use Council for direct answers, factual/creative prompts, and "give me the best response" synthesis. Use Advisors when the prompt has a real decision, tradeoff, risk review, prioritization, strategy, ethics, or disagreement. The Advisor prompts intentionally force positions, rebuttals, consensus scoring, and verdicts; simple prompts can drift into debates over criteria.
 
 ## Execution Modes
 

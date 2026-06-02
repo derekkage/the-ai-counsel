@@ -253,11 +253,11 @@ The model receives the full prior conversation as context and responds with a re
 
 **What happens behind the scenes:**
 
-The AI identifies that you want a multi-round debate among specific personas, mapping "The Skeptic" to `skeptic` and "The Strategist" to `strategist`. It calls `run_advisor_debate`:
+The AI identifies that you want a multi-round debate among specific personas, mapping "The Skeptic" to `skeptic` and "The Strategist" to `strategist`. It calls `advisor_debate`:
 
 ```json
 {
-  "tool": "run_advisor_debate",
+  "tool": "advisor_debate",
   "input": {
     "question": "Should we migrate our backend from monolithic REST to distributed gRPC?",
     "persona_ids": ["skeptic", "strategist"],
@@ -267,6 +267,8 @@ The AI identifies that you want a multi-round debate among specific personas, ma
 ```
 
 The MCP server coordinates with the backend to run the structured debate and returns the full transcript and verdict:
+
+Advisor debate is intended for prompts with real tradeoffs or disagreement. For direct factual or creative prompts, use `model_chat` or `council_deliberate` instead.
 
 ```json
 {
@@ -421,4 +423,3 @@ The AI calls `advisor_settings` with action `save_preset`:
 > "Saved Startup Panel as your default advisor preset. Open Advisor Setup to load it on future debates."
 
 See `skills/the-ai-counsel-api/SKILL.md` §18 for the full preset schema (max 20 presets; saves personas/models/rounds/search — not the debate question). REST fallback: `PUT /api/settings` with `advisor_presets`.
-
