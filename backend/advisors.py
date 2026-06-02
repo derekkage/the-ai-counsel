@@ -374,28 +374,28 @@ async def run_debate(
                         word_count = _count_words(clean_content)
                         exceeds_word_limit = word_count > word_limit
                         has_consensus = (
-                            not exceeds_word_limit
-                            and consensus_score is not None
+                            consensus_score is not None
                             and consensus_score >= 4
                         )
-                        response_error = (
-                            f"Advisor response exceeded {word_limit} word limit."
+                        response_warning = (
+                            f"Advisor response exceeded the {word_limit} word guidance and was kept."
                             if exceeds_word_limit
                             else None
                         )
-                        if not exceeds_word_limit:
-                            consensus_votes[pid] = has_consensus
-                            consensus_scores[pid] = consensus_score
+                        consensus_votes[pid] = has_consensus
+                        consensus_scores[pid] = consensus_score
                         resp_data = {
                             "persona_id": pid,
                             "persona_name": personas_map[pid].name,
                             "model": model,
                             "content": clean_content,
-                            "error": response_error,
+                            "error": None,
+                            "warning": response_warning,
                             "consensus": has_consensus,
-                            "consensus_score": None if exceeds_word_limit else consensus_score,
+                            "consensus_score": consensus_score,
                             "word_count": word_count,
                             "word_limit": word_limit,
+                            "word_limit_exceeded": exceeds_word_limit,
                             "usage": usage,
                             "cost": cost,
                         }
@@ -425,6 +425,9 @@ async def run_debate(
                 {"persona_id": r["persona_id"], "persona_name": r["persona_name"],
                  "model": r["model"], "content": r["content"],
                  "consensus": r["consensus"], "consensus_score": r["consensus_score"],
+                 "warning": r.get("warning"),
+                 "word_count": r.get("word_count"), "word_limit": r.get("word_limit"),
+                 "word_limit_exceeded": r.get("word_limit_exceeded"),
                  "usage": r.get("usage"), "cost": r.get("cost")}
                 for r in successful_responses
             ],

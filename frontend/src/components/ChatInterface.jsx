@@ -271,6 +271,7 @@ export default function ChatInterface({
                                         currentRound={msg.currentRound || msg.rounds?.length || 1}
                                         maxRounds={msg.maxRounds || msg.metadata?.max_rounds || 3}
                                         isRunning={msg.isRunning || false}
+                                        phase={msg.phase || null}
                                         question={msg.question || ''}
                                         webSearch={msg.webSearch}
                                         error={msg.error || null}

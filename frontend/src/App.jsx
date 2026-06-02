@@ -69,6 +69,7 @@ const buildAdvisorProgressMessage = (progress, existing = {}) => {
     type: 'advisor_debate',
     mode: 'advisors',
     isRunning: true,
+    phase: progress.stage || existing.phase || 'initializing',
     currentRound: progress.current_round || existing.currentRound || 0,
     maxRounds: progress.max_rounds || existing.maxRounds || metadata.max_rounds || 3,
     question: progress.question || existing.question || '',
@@ -650,10 +651,24 @@ function App() {
               break;
 
             case 'advisor_round_start':
-              updateAdvisorMessage((lastMsg) => ({
-                ...lastMsg,
-                currentRound: event.round || event.data?.round_number || lastMsg.currentRound,
-              }));
+              updateAdvisorMessage((lastMsg) => {
+                const roundNumber = event.round || event.data?.round_number || lastMsg.currentRound || 1;
+                const rounds = [...(lastMsg.rounds || [])];
+                const roundIndex = roundNumber - 1;
+                if (!rounds[roundIndex]) {
+                  rounds[roundIndex] = { round: roundNumber, round_number: roundNumber, responses: [], complete: false };
+                }
+                rounds[roundIndex] = {
+                  ...rounds[roundIndex],
+                  order: event.data?.order || rounds[roundIndex].order || [],
+                };
+                return {
+                  ...lastMsg,
+                  phase: 'round',
+                  currentRound: roundNumber,
+                  rounds,
+                };
+              });
               break;
 
             case 'advisor_response':
@@ -667,7 +682,7 @@ function App() {
                   ...rounds[roundIndex],
                   responses: [...rounds[roundIndex].responses, event.data],
                 };
-                return { ...lastMsg, rounds };
+                return { ...lastMsg, phase: 'round', rounds };
               });
               break;
 
@@ -688,15 +703,24 @@ function App() {
                 };
                 return {
                   ...lastMsg,
+                  phase: 'round_complete',
                   rounds,
                   consensusReached: event.data?.consensus_reached || false,
                 };
               });
               break;
 
+            case 'advisor_tiebreaker_start':
+              updateAdvisorMessage((lastMsg) => ({
+                ...lastMsg,
+                phase: 'tiebreaker',
+              }));
+              break;
+
             case 'advisor_verdict':
               updateAdvisorMessage((lastMsg) => ({
                 ...lastMsg,
+                phase: 'verdict',
                 verdict: event.data || event,
               }));
               break;
@@ -704,7 +728,15 @@ function App() {
             case 'advisor_tiebreaker':
               updateAdvisorMessage((lastMsg) => ({
                 ...lastMsg,
+                phase: 'tiebreaker',
                 tiebreaker: event.data || event,
+              }));
+              break;
+
+            case 'advisor_verdict_start':
+              updateAdvisorMessage((lastMsg) => ({
+                ...lastMsg,
+                phase: 'verdict',
               }));
               break;
 
@@ -712,6 +744,7 @@ function App() {
               updateAdvisorMessage((lastMsg) => ({
                   ...lastMsg,
                   isRunning: false,
+                  phase: 'complete',
                   personas: event.data?.personas || lastMsg.personas,
                   rounds: (event.data?.rounds || lastMsg.rounds || []).map(normalizeAdvisorRound),
                   verdict: event.data?.verdict || lastMsg.verdict,
@@ -729,6 +762,7 @@ function App() {
               updateAdvisorMessage((lastMsg) => ({
                   ...lastMsg,
                   isRunning: false,
+                  phase: 'error',
                   error: event.message || 'Advisor debate failed',
                 }));
               setIsLoading(false);

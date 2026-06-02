@@ -7,6 +7,52 @@
   gap: 24px;
 }
 
+.debate-view__live-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.32);
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.08);
+}
+
+.debate-view__live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #a78bfa;
+  box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.5);
+  animation: debate-live-pulse 1.4s ease-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes debate-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0.5); }
+  100% { box-shadow: 0 0 0 10px rgba(167, 139, 250, 0); }
+}
+
+.debate-view__live-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.debate-view__live-copy strong {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  color: #ddd6fe;
+}
+
+.debate-view__live-copy span {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* ── Question Echo ── */
 .debate-view__question {
   background: var(--bg-card);
@@ -268,6 +314,18 @@
   margin-left: auto;
 }
 
+.debate-view__response-warning-badge {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  margin-left: auto;
+}
+
 /* Response card body */
 .debate-view__response-body {
   padding: 16px;
@@ -293,6 +351,30 @@
   font-size: 11px;
   color: var(--text-muted);
   font-family: var(--font-code);
+}
+
+.debate-view__response-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.debate-view__response-warning span:last-child {
+  color: var(--text-muted);
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* ── Consensus / Next Round Banners ── */

@@ -497,7 +497,7 @@ async def test_run_debate_aborts_when_cross_pollination_extract_fails():
 
 
 @pytest.mark.asyncio
-async def test_run_debate_marks_over_word_limit_response_as_error():
+async def test_run_debate_keeps_over_word_limit_response_with_warning():
     long_response = " ".join(["word"] * 151) + "\nCONSENSUS_SCORE: 5"
     responses = {
         "skeptic": (long_response, None),
@@ -516,9 +516,12 @@ async def test_run_debate_marks_over_word_limit_response_as_error():
 
     first_round = next(e for e in events if e["type"] == "advisor_round_complete")
     skeptic_resp = next(r for r in first_round["data"]["responses"] if r["persona_id"] == "skeptic")
-    assert skeptic_resp["error"] == "Advisor response exceeded 150 word limit."
+    assert skeptic_resp["error"] is None
+    assert skeptic_resp["warning"] == "Advisor response exceeded the 150 word guidance and was kept."
+    assert skeptic_resp["word_limit_exceeded"] is True
+    assert skeptic_resp["consensus_score"] == 5
     assert skeptic_resp["word_count"] == 151
-    assert first_round["data"]["consensus_reached"] is False
+    assert first_round["data"]["consensus_reached"] is True
 
 
 @pytest.mark.asyncio

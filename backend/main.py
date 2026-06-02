@@ -128,7 +128,8 @@ def _update_advisor_run(conversation_id: str, event: Dict[str, Any]) -> None:
         round_number = _advisor_round_number(event)
         run["stage"] = "round"
         run["current_round"] = round_number
-        _ensure_advisor_round(run, round_number)
+        round_data = _ensure_advisor_round(run, round_number)
+        round_data["order"] = data.get("order") or round_data.get("order") or []
         progress.update({
             "round": round_number,
             "max_rounds": run.get("max_rounds"),
