@@ -382,6 +382,8 @@ Always update all version surfaces in the same commit. The CHANGELOG drives the 
 
 **Full documentation sync** (settings fields, MCP tools, advisor/council flows): follow [`docs/DOC-SYNC.md`](docs/DOC-SYNC.md).
 
+**GitHub Releases:** For public version bumps, create an annotated `vX.Y.Z` tag and a GitHub Release from that tag. Release notes should come from the matching `CHANGELOG.md` section. See [`docs/RELEASE.md`](docs/RELEASE.md).
+
 ## Future Enhancements
 
 - Model performance analytics over time
