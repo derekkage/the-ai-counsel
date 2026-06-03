@@ -89,7 +89,7 @@ Watch as:
 3. Configure the debate options:
    - Select 2 to 4 advisor personas (Skeptic, Strategist, Ethicist, etc.)
    - Set the number of back-and-forth rounds (3 to 10)
-   - Choose a default model or assign specific models to individual personas — **all configured providers** appear here (API keys + Ollama + custom endpoint), not just council-enabled toggles
+   - Choose a default model or assign specific models to individual personas — models from all **enabled** providers appear here
    - *(Optional)* Save your lineup as a **preset** from Model Assignment (personas, models, rounds, web search — not the debate question)
 4. Click **Start Debate** and watch the advisors debate each other by name, culminating in a structured consensus verdict with a recommended action plan!
 
@@ -128,8 +128,7 @@ Choose your deliberation type and depth:
 
 | Problem | Solution |
 |---------|----------|
-| Council models not appearing | Enable the provider in **Council Config** toggles; verify API key / Ollama connection |
-| Advisor models not appearing | Configure **LLM API Keys** (keys + Ollama URL + custom endpoint). Council toggles do not apply to advisors |
+| Models not appearing | Enable the provider in **Settings → Council Config** toggles; verify API key / Ollama connection. Toggles are global — they apply to both Council and Advisor pickers |
 | Rate limit errors | Use Groq (14k/day) or Ollama (unlimited) |
 | Port conflict | Backend uses 8001, frontend uses 5173 |
 | node_modules errors | `rm -rf frontend/node_modules && npm install --prefix frontend` |

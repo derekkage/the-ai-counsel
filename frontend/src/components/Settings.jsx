@@ -67,6 +67,7 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
   const [fullContentResults, setFullContentResults] = useState(3);
   const [searchResultCount, setSearchResultCount] = useState(8);
   const [searchHybridMode, setSearchHybridMode] = useState(true);
+  const [dateFormat, setDateFormat] = useState('auto');
 
   // OpenRouter State
   const [openrouterApiKey, setOpenrouterApiKey] = useState('');
@@ -176,8 +177,7 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
   const [hasChanges, setHasChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
 
-  // Ref for chairman select to focus on validation error
-  const chairmanSelectRef = useRef(null);
+  
 
   // Remote/Local filter toggles per model type
   const [councilMemberFilters, setCouncilMemberFilters] = useState({});  // Per-member filters (indexed by member index)
@@ -420,6 +420,7 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
       setSearchResultCount(data.search_result_count ?? 8);
       setSearchHybridMode(data.search_hybrid_mode ?? true);
       setShowFreeOnly(data.show_free_only ?? false);
+      setDateFormat(data.date_format || 'auto');
 
       // Enabled Providers — never show ON for sources that aren't configured
       if (data.enabled_providers) {
@@ -868,203 +869,6 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
     }
   };
 
-  const handleCouncilModelChange = (index, modelId) => {
-    setCouncilModels(prev => {
-      const updated = [...prev];
-      updated[index] = modelId;
-      return updated;
-    });
-  };
-
-
-
-  const handleMemberFilterChange = (index, filter) => {
-    setCouncilMemberFilters(prev => ({
-      ...prev,
-      [index]: filter
-    }));
-
-    // Clear the model selection for this member when switching filters
-    setCouncilModels(prev => {
-      const updated = [...prev];
-      updated[index] = '';
-      return updated;
-    });
-  };
-
-  // Calculate Rate Limit Warning
-  const getRateLimitWarning = () => {
-    if (!settings || !availableModels || availableModels.length === 0) return null;
-
-    let openRouterFreeCount = 0;
-
-    const totalCouncilMembers = councilModels.length;
-    let totalRequestsPerRun = (totalCouncilMembers * 2) + 2; // Stage 1, Stage 2, Chairman, Search Query
-
-    // Check OpenRouter free models
-    councilModels.forEach(modelId => {
-      const isRemote = !modelId.includes(':') || modelId.startsWith('openrouter:');
-      if (isRemote) {
-        const modelData = availableModels.find(m => m.id === modelId || m.id === modelId.replace('openrouter:', ''));
-        if (modelData && modelData.is_free) {
-          openRouterFreeCount++;
-        }
-      }
-    });
-
-    // Check Chairman and Search Query Model
-    const chairmanModelData = availableModels.find(m => m.id === chairmanModel || m.id === chairmanModel.replace('openrouter:', ''));
-    if (chairmanModelData && chairmanModelData.is_free && (!chairmanModel.includes(':') || chairmanModel.startsWith('openrouter:'))) {
-      openRouterFreeCount++;
-    }
-
-    // Logic for OpenRouter Warnings
-    // OpenRouter: 20 RPM, 50 RPD (without credits)
-    if (openRouterFreeCount > 0) {
-      if (totalRequestsPerRun > 10 && openRouterFreeCount >= 3) { // 10 requests is approx half of 20 RPM
-        return {
-          type: 'error',
-          title: 'High Rate Limit Risk (OpenRouter)',
-          message: `Your council configuration generates ~${totalRequestsPerRun} requests per run, with ${openRouterFreeCount} free OpenRouter models. This may exceed the 20 requests/minute limit. Consider using Groq or Ollama for some members.`
-        };
-      } else if (openRouterFreeCount === totalRequestsPerRun) { // All requests from free OpenRouter
-        return {
-          type: 'warning',
-          title: 'Daily Limit Caution (OpenRouter)',
-          message: 'Free OpenRouter models are limited to 50 requests/day (without credits). Use Groq (14k/day) or Ollama for unlimited usage.'
-        };
-      }
-    }
-
-    // Logic for Groq Warnings
-    // Groq: 30 RPM, 14,400 RPD (for Llama models)
-    let groqRequests = 0;
-    councilModels.forEach(id => {
-      if (id.startsWith('groq:')) groqRequests += 2; // Stage 1 + Stage 2
-    });
-    if (chairmanModel.startsWith('groq:')) groqRequests += 1;
-
-    if (groqRequests > 15) {
-      return {
-        type: 'warning',
-        title: 'High Concurrency Caution (Groq)',
-        message: `Your configuration uses ${groqRequests} Groq requests per run. The free tier limit is 30 requests/minute. You may experience throttling if you send messages quickly.`
-      };
-    }
-
-    return null;
-  };
-
-  const rateLimitWarning = getRateLimitWarning();
-
-  const handleFeelingLucky = () => {
-    // 1. Get pool of available models respecting "Free Only" filter
-    let candidateModels = filteredAvailableModels;
-
-    if (!candidateModels || candidateModels.length === 0) {
-      setError("No models available to randomize! Check your enabled providers.");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
-
-    // Filter out models with known small context windows (< 8k) to prevent Stage 2 errors
-    // Note: context_length might be undefined for some providers, we assume those are safe or unknown
-    const safeModels = candidateModels.filter(m => !m.context_length || m.context_length >= 8192);
-
-    // If we have enough safe models, use them. Otherwise fallback to all.
-    if (safeModels.length >= 2) {
-      candidateModels = safeModels;
-    }
-
-    // Helper to pick random item
-    const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
-
-    // Helper to determine filter type (remote/local) from model ID
-    const getFilterForModel = (modelId) => {
-      return modelId.startsWith('ollama:') ? 'local' : 'remote';
-    };
-
-    // 2. Randomize Council Members (Unique if possible)
-    let remainingModels = [...candidateModels];
-    const newCouncilModels = [];
-    const newMemberFilters = {};
-
-    // We need to fill 'councilModels.length' slots
-    for (let i = 0; i < councilModels.length; i++) {
-      // If we ran out of unique models, refill the pool
-      if (remainingModels.length === 0) {
-        remainingModels = [...candidateModels];
-      }
-
-      const randomIndex = Math.floor(Math.random() * remainingModels.length);
-      const selectedModel = remainingModels[randomIndex];
-
-      newCouncilModels.push(selectedModel.id);
-      newMemberFilters[i] = getFilterForModel(selectedModel.id);
-
-      // Remove selected to avoid duplicates (until we run out)
-      remainingModels.splice(randomIndex, 1);
-    }
-
-    // 3. Randomize Chairman
-    const randomChairman = pickRandom(candidateModels);
-
-    // Apply Updates
-    setCouncilModels(newCouncilModels);
-    setCouncilMemberFilters(newMemberFilters);
-
-    setChairmanModel(randomChairman.id);
-    setChairmanFilter(getFilterForModel(randomChairman.id));
-
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 2000);
-  };
-
-  const handleAddCouncilMember = () => {
-    const newIndex = councilModels.length;
-
-    // Determine best default filter based on what's available
-    let defaultFilter = 'remote';
-    const isRemoteAvailable = enabledProviders.openrouter || enabledProviders.direct || enabledProviders.groq || enabledProviders.custom;
-    const isLocalAvailable = enabledProviders.ollama && ollamaAvailableModels.length > 0;
-
-    if (!isRemoteAvailable && isLocalAvailable) {
-      defaultFilter = 'local';
-    }
-
-    // Get models for the chosen filter
-    const filtered = filterByRemoteLocal(filteredAvailableModels, defaultFilter);
-
-    // Even if no models found, we should allow adding the slot so user can switch filter/provider
-    // But we try to pick a default if possible
-    const defaultModel = filtered.length > 0 ? filtered[0].id : '';
-
-    setCouncilModels(prev => [...prev, defaultModel]);
-
-    // Initialize filter for new member
-    setCouncilMemberFilters(prev => ({
-      ...prev,
-      [newIndex]: defaultFilter
-    }));
-  };
-
-  const handleRemoveCouncilMember = (index) => {
-    setCouncilModels(prev => prev.filter((_, i) => i !== index));
-    // Clean up filters - shift indices down
-    setCouncilMemberFilters(prev => {
-      const newFilters = {};
-      Object.keys(prev).forEach(key => {
-        const idx = parseInt(key);
-        if (idx < index) {
-          newFilters[idx] = prev[idx];
-        } else if (idx > index) {
-          newFilters[idx - 1] = prev[idx];
-        }
-      });
-      return newFilters;
-    });
-  };
-
   const handlePromptChange = (key, value) => {
     setPrompts(prev => ({
       ...prev,
@@ -1086,6 +890,15 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
     } catch (err) {
       console.error("Failed to fetch default prompt", err);
       setError("Failed to reset prompt");
+    }
+  };
+
+  const handleDateFormatChange = async (newFormat) => {
+    setDateFormat(newFormat);
+    try {
+      await api.updateSettings({ date_format: newFormat });
+    } catch (err) {
+      console.error('Failed to save date format:', err);
     }
   };
 
@@ -1133,6 +946,7 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
       setSearchKeywordExtraction('direct');
       setFullContentResults(3);
       setShowFreeOnly(false);
+      setDateFormat('auto');
       setOllamaBaseUrl('http://localhost:11434');
 
       // Reset debate settings
@@ -1335,6 +1149,9 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
       // Ollama Base URL
       ollama_base_url: ollamaBaseUrl,
 
+      // Display
+      date_format: dateFormat,
+
       // Prompts
       prompts: prompts
     };
@@ -1396,6 +1213,9 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
         // Apply Ollama Base URL
         if (config.ollama_base_url) setOllamaBaseUrl(config.ollama_base_url);
 
+        // Apply Display Preferences
+        if (config.date_format) setDateFormat(config.date_format);
+
         // Apply Prompts
         if (config.prompts) {
           setPrompts(prev => ({ ...prev, ...config.prompts }));
@@ -1427,40 +1247,6 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
     setError(null);
     setSuccess(false);
     setValidationErrors({});
-
-    // Validate council configuration
-    const hasAnyCouncilMember = councilModels.some(m => m && m.length > 0);
-    const emptyMemberIndices = councilModels
-      .map((m, i) => (!m || m.length === 0) ? i : -1)
-      .filter(i => i !== -1);
-    const hasEmptyMembers = emptyMemberIndices.length > 0;
-    const hasChairman = chairmanModel && chairmanModel.length > 0;
-
-    // If there are empty council member slots, show error
-    if (hasEmptyMembers) {
-      const firstEmptyIndex = emptyMemberIndices[0];
-      setValidationErrors({ [`member_${firstEmptyIndex}`]: true });
-      setError(`Please select a model for Member ${firstEmptyIndex + 1} or remove the empty slot.`);
-      setActiveSection('council');
-      return;
-    }
-
-    const currentMode = settings?.execution_mode || DEFAULT_EXECUTION_MODE;
-    if (currentMode === 'full' && hasAnyCouncilMember && !hasChairman) {
-      setValidationErrors({ chairman: true });
-      setError('Please select a Chairman to complete the council configuration.');
-      
-      // Focus on the chairman select and scroll to council section
-      setActiveSection('council');
-      setTimeout(() => {
-        if (chairmanSelectRef.current) {
-          chairmanSelectRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          chairmanSelectRef.current.focus();
-        }
-      }, 100);
-      return;
-    }
-
     setIsSaving(true);
 
     try {
@@ -1607,40 +1393,8 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
     settings
   ]);
 
-  // Get filtered models for council member selection (respects free filter)
-  const filteredAvailableModels = useMemo(() => {
-    const all = allAvailableModels;
-    if (!showFreeOnly) return all;
-
-    // Filter logic:
-    // 1. If it's an OpenRouter model, checks if it's free.
-    // 2. If it's NOT OpenRouter (Direct, Ollama, Custom), keep it visible.
-    return all.filter(m => {
-      // Check if it's an OpenRouter model
-      const isOpenRouter = m.source === 'openrouter' || m.provider === 'OpenRouter' || m.id.startsWith('openrouter:');
-
-      // If it is OpenRouter, apply the free filter
-      if (isOpenRouter) {
-        return m.is_free;
-      }
-
-      // Otherwise (Direct, Ollama, Custom), always show
-      return true;
-    });
-  }, [allAvailableModels, showFreeOnly]);
 
 
-
-  // Filter models by remote/local for specific use case
-  const filterByRemoteLocal = (models, filter) => {
-    if (filter === 'local') {
-      // Only Ollama models
-      return models.filter(m => m.id.startsWith('ollama:'));
-    } else {
-      // Remote: OpenRouter + Direct providers (exclude Ollama)
-      return models.filter(m => !m.id.startsWith('ollama:'));
-    }
-  };
 
   if (!settings) {
     return (
@@ -1784,51 +1538,20 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
               <CouncilConfig
                 settings={settings}
                 ollamaStatus={ollamaStatus}
-                // State
                 enabledProviders={enabledProviders}
                 setEnabledProviders={setEnabledProviders}
                 directProviderToggles={directProviderToggles}
                 setDirectProviderToggles={setDirectProviderToggles}
-                showFreeOnly={showFreeOnly}
-                setShowFreeOnly={setShowFreeOnly}
-                isLoadingModels={isLoadingModels}
-                rateLimitWarning={rateLimitWarning}
                 councilModels={councilModels}
-                councilMemberFilters={councilMemberFilters}
                 chairmanModel={chairmanModel}
-                setChairmanModel={setChairmanModel}
-                chairmanFilter={chairmanFilter}
-                setChairmanFilter={setChairmanFilter}
                 councilTemperature={councilTemperature}
                 setCouncilTemperature={setCouncilTemperature}
                 chairmanTemperature={chairmanTemperature}
                 setChairmanTemperature={setChairmanTemperature}
-                // Debate state
-                critiqueMode={critiqueMode}
-                setCritiqueMode={setCritiqueMode}
-                debateRounds={debateRounds}
-                setDebateRounds={setDebateRounds}
-                autoConverge={autoConverge}
-                setAutoConverge={setAutoConverge}
-                convergenceThreshold={convergenceThreshold}
-                setConvergenceThreshold={setConvergenceThreshold}
-                // Data
-                allModels={allAvailableModels}
-                filteredModels={filteredAvailableModels}
-                ollamaAvailableModels={ollamaAvailableModels}
+                stage2Temperature={stage2Temperature}
+                setStage2Temperature={setStage2Temperature}
                 customEndpointName={customEndpointName}
                 customEndpointUrl={customEndpointUrl}
-                // Callbacks
-                handleFeelingLucky={handleFeelingLucky}
-                handleMemberFilterChange={handleMemberFilterChange}
-                handleCouncilModelChange={handleCouncilModelChange}
-                handleRemoveCouncilMember={handleRemoveCouncilMember}
-                handleAddCouncilMember={handleAddCouncilMember}
-                setActiveSection={setActiveSection}
-                setActivePromptTab={setActivePromptTab}
-                // Validation
-                validationErrors={validationErrors}
-                chairmanSelectRef={chairmanSelectRef}
               />
             )}
 
@@ -1856,8 +1579,6 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
                 handleResetPrompt={handleResetPrompt}
                 activePromptTab={activePromptTab}
                 setActivePromptTab={setActivePromptTab}
-                stage2Temperature={stage2Temperature}
-                setStage2Temperature={setStage2Temperature}
               />
             )}
 
@@ -1923,10 +1644,42 @@ export default function Settings({ onClose, ollamaStatus, onRefreshOllama, initi
             {activeSection === 'import_export' && (
               <section className="settings-section">
                 <h3>Backup & Reset</h3>
-                <p className="section-description">
-                  Save or restore your council configuration (models, prompts, settings).
-                  <br /><em>Note: API keys are NOT exported for security.</em>
-                </p>
+
+                <div className="subsection">
+                  <h4>Display Preferences</h4>
+                  <div className="setting-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+                    <label htmlFor="date-format-select" style={{ whiteSpace: 'nowrap' }}>Date Format</label>
+                    <select
+                      id="date-format-select"
+                      value={dateFormat}
+                      onChange={(e) => handleDateFormatChange(e.target.value)}
+                      className="select-input"
+                      style={{ maxWidth: '220px' }}
+                    >
+                      <option value="auto">Auto (browser locale)</option>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY (Europe / intl.)</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                    </select>
+                    <span className="setting-hint" style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                      {dateFormat === 'auto'
+                        ? `Preview: ${new Date().toLocaleDateString()}`
+                        : `Preview: ${
+                            dateFormat === 'MM/DD/YYYY' ? new Date().toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                            : dateFormat === 'DD/MM/YYYY' ? new Date().toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                            : new Date().toLocaleDateString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit' })
+                          }`}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="subsection" style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <h4>Import / Export</h4>
+                  <p className="section-description">
+                    Save or restore your council configuration (models, prompts, settings).
+                    <br /><em>Note: API keys are NOT exported for security.</em>
+                  </p>
+                </div>
 
                 <div className="subsection">
                   <div className="council-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>

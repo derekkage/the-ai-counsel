@@ -208,9 +208,9 @@ Ground your council's or advisors' responses in real-time information:
 
 Fine-tune creativity vs consistency per stage:
 
-- **Council Heat**: Stage 1 response creativity (default: 0.5)
-- **Chairman Heat**: Final synthesis creativity (default: 0.4)
-- **Stage 2 Heat**: Peer ranking consistency (default: 0.3)
+- **Council Heat** (Stage 1): Individual response creativity (default: 0.5)
+- **Peer Ranking Heat** (Stage 2): Ranking consistency (default: 0.3)
+- **Chairman Heat** (Stage 3): Final synthesis creativity (default: 0.4)
 
 Some provider/model combinations only accept their default temperature. The app automatically omits temperature for those models so preflight and runs do not fail on provider-specific temperature restrictions.
 
@@ -307,7 +307,7 @@ On first launch, configure at least one LLM provider in Settings:
 
 API keys **auto-save** when you click "Test" and the connection succeeds.
 
-**Provider toggles vs Advisors:** Settings → Council Config **Remote/Local toggles** filter which sources appear in **council** model pickers only. **LLM Advisors** use every configured provider (saved API keys + Ollama URL + custom endpoint) regardless of those toggles.
+**Provider toggles are global:** Settings → Council Config **provider toggles** control which sources appear in **all** model pickers — Council Setup and Advisor Setup alike. A provider must be both configured (API key) and enabled (toggle on) to show its models.
 
 **Advisor presets:** In Advisor Setup, save named lineups (personas, models, optional rounds/web search) from the Model Assignment section. Presets persist in `settings.json` as `advisor_presets` (max 20; one default).
 
@@ -433,9 +433,8 @@ data/
 - Backend might still be starting up — the app retries automatically
 
 **Models not appearing in dropdown**
-- **Council (Settings → Council Config):** Ensure the provider toggle is enabled for that source
-- **Advisors (Advisor Setup):** Toggles do not apply — configure API keys / Ollama URL / custom endpoint under **LLM API Keys** instead
-- Check that API key is configured and tested successfully
+- Ensure the provider toggle is enabled in **Settings → Council Config** (toggles are global — apply to both Council and Advisor pickers)
+- Check that the API key is configured and tested successfully
 - For Ollama, verify connection is active
 
 **Jina Reader returns 451 errors**

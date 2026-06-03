@@ -97,7 +97,7 @@ This fixes binary incompatibilities (e.g., `@rollup/rollup-darwin-*` variants).
 | `CostReport.jsx` | Compact run-cost panel with total cost, token/call counts, confidence status, and per-model breakdown |
 | `CouncilGrid.jsx` | Visual grid of council members with provider icons |
 | `CouncilSetup.jsx` | Inline council editor on welcome screen (members, chairman, presets; auto-save) |
-| `Settings.jsx` | 5-section settings: LLM API Keys, Council Config, System Prompts, Search Providers, Backup & Reset |
+| `Settings.jsx` | 7-section settings: LLM API Keys, Council Config, Council Debate Config, Council System Prompts, Advisor System Prompts, Search Providers, Backup & Reset |
 | `Sidebar.jsx` | Conversation list with inline delete confirmation |
 | `SearchableModelSelect.jsx` | Searchable dropdown for model selection |
 
@@ -312,18 +312,21 @@ curl https://your-endpoint.com/v1/models -H "Authorization: Bearer $API_KEY"
 
 **UI Sections** (sidebar navigation):
 1. **LLM API Keys**: OpenRouter, Groq, Ollama, Direct providers, Custom endpoint
-2. **Council Config**: **Council-only** provider toggles (Remote/Local filters), member/chairman model selection, temperature controls, "I'm Feeling Lucky" randomizer. Toggles do **not** restrict Advisor model pickers.
-3. **System Prompts**: Stage 1 / Stage 2 / Stage 3 / Title / Search Query are user-editable and persisted in `settings.json` (fields `stage1_prompt` / `stage2_prompt` / `stage3_prompt` / `title_prompt` / `query_prompt`, all five updated via `PUT /api/settings`), each with reset-to-default. The Title and Query prompts (`TITLE_PROMPT_DEFAULT` / query-generation prompt in `backend/prompts.py`) are used internally by `generate_conversation_title` and `generate_search_query`.
-4. **Search Providers**: DuckDuckGo, Tavily, Brave, Serper, TinyFish + Jina full content settings
-5. **Backup & Reset**: Import/Export config, reset to defaults
+2. **Council Config**: **Global** provider toggles — Local (Ollama) standalone, Remote APIs master toggle with OpenRouter, Groq, Custom, and Direct Connections underneath. Temperature controls for all three stages (Council Heat, Peer Ranking Heat, Chairman Heat). Model selection (members/chairman) is handled exclusively on the welcome screen via Council Setup.
+3. **Council Debate Config**: Critique mode, debate rounds, auto-converge, convergence threshold
+4. **Council System Prompts**: Stage 1 / Stage 2 / Stage 3 / Title / Search Query are user-editable and persisted in `settings.json` (fields `stage1_prompt` / `stage2_prompt` / `stage3_prompt` / `title_prompt` / `query_prompt`, all five updated via `PUT /api/settings`), each with reset-to-default. The Title and Query prompts (`TITLE_PROMPT_DEFAULT` / query-generation prompt in `backend/prompts.py`) are used internally by `generate_conversation_title` and `generate_search_query`.
+5. **Advisor System Prompts**: Round 1, follow-up, cross-pollination, verdict, tiebreaker prompts
+6. **Search Providers**: DuckDuckGo, Tavily, Brave, Serper, TinyFish + Jina full content settings
+7. **Backup & Reset**: Display preferences (date format), Import/Export config, reset to defaults
 
 **Council presets** (`council_presets` in `settings.json`): Saved from welcome-screen Council Setup — members + chairman only. Max 20; one default auto-loads. Main screen and Settings edit the same `council_models` / `chairman_model` fields. Lineup locked in a conversation after the first message.
 
 **Advisor presets** (`advisor_presets` in `settings.json`): Saved from Advisor Setup — personas, simple/advanced mode, model assignments, optional rounds/web search. Max 20; one default. See `skills/the-ai-counsel-api/SKILL.md`.
 
 **Provider availability (important)**:
-- **Council** model pickers in Settings respect `enabled_providers` and `direct_provider_toggles`.
-- **Advisors** model pickers use every **configured** provider (keys + Ollama URL + custom endpoint), regardless of council toggles.
+- `enabled_providers` and `direct_provider_toggles` are **global** — they control which providers appear in all model pickers: Council Setup (welcome screen), Advisor Setup, and Settings temperature controls.
+- A provider must be both **configured** (API key set / Ollama connected) and **enabled** (toggle on) for its models to appear.
+- By default, providers are enabled when their API key is first configured. Users can disable individual providers in Settings → Council Config.
 
 **Documentation sync**: When changing API, settings fields, MCP tools, or user-facing flows, update all surfaces listed in [`docs/DOC-SYNC.md`](docs/DOC-SYNC.md) in the same PR.
 
@@ -332,10 +335,10 @@ curl https://your-endpoint.com/v1/models -H "Authorization: Bearer $API_KEY"
 - **Configs require manual save**: Model selections, prompts, temperatures
 - UX flow: Test → Success → Auto-save → Clear input → "Settings saved!"
 
-**Temperature Controls**:
-- Council Heat: Stage 1 creativity (default: 0.5)
-- Chairman Heat: Stage 3 synthesis (default: 0.4)
-- Stage 2 Heat: Peer ranking consistency (default: 0.3)
+**Temperature Controls** (all in Settings → Council Config):
+- Council Heat (Stage 1): Individual response creativity (default: 0.5)
+- Peer Ranking Heat (Stage 2): Ranking consistency (default: 0.3)
+- Chairman Heat (Stage 3): Final synthesis creativity (default: 0.4)
 
 **Rate Limit Warnings**:
 - Formula: `(council_members × 2) + 2` requests per council run

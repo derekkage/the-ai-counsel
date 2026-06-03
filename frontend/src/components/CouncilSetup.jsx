@@ -23,15 +23,22 @@ const DIRECT_PROVIDER_KEY_FLAGS = {
 };
 
 function filterDirectModels(directModels, settings) {
+  const ep = settings.enabled_providers || {};
+  const dt = settings.direct_provider_toggles || {};
   return directModels.filter((model) => {
-    if (model.provider === 'Groq') return settings.groq_api_key_set;
-    const providerKey = (model.provider || '').toLowerCase();
+    if (model.provider === 'Groq') {
+      return settings.groq_api_key_set && (ep.groq !== false);
+    }
+    if (!ep.direct) return false;
+    const providerKey = (model.provider || '').toLowerCase().replace(/\s+/g, '-');
+    if (dt[providerKey] === false) return false;
     const flag = DIRECT_PROVIDER_KEY_FLAGS[providerKey];
     return flag ? settings[flag] : false;
   });
 }
 
 function getConfiguredModelSources(settings) {
+  const ep = settings.enabled_providers || {};
   const hasDirect = !!(
     settings.openai_api_key_set
     || settings.anthropic_api_key_set
@@ -43,10 +50,10 @@ function getConfiguredModelSources(settings) {
     || settings.opencode_api_key_set
   );
   return {
-    openrouter: !!settings.openrouter_api_key_set,
-    ollama: !!settings.ollama_base_url,
-    direct: hasDirect,
-    custom: !!settings.custom_endpoint_url,
+    openrouter: !!settings.openrouter_api_key_set && (ep.openrouter !== false),
+    ollama: !!settings.ollama_base_url && (ep.ollama !== false),
+    direct: hasDirect && (ep.direct !== false),
+    custom: !!settings.custom_endpoint_url && (ep.custom !== false),
   };
 }
 
@@ -102,7 +109,7 @@ export default function CouncilSetup({
   onCouncilChangeRef.current = onCouncilChange;
 
   const members = useMemo(() => filterMembers(councilModels), [councilModels]);
-  const showChairman = executionMode === 'full';
+  const showChairman = editable || executionMode === 'full';
 
   const currentSnapshot = useMemo(
     () => buildSnapshot(members, chairmanModel),

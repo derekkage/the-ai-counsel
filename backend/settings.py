@@ -168,6 +168,9 @@ class Settings(BaseModel):
     title_prompt: str = TITLE_PROMPT_DEFAULT
     query_prompt: str = QUERY_PROMPT_DEFAULT
     
+    # Display Preferences
+    date_format: str = "auto"  # "auto", "MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"
+
     # Execution Mode
     execution_mode: str = "full"  # Default execution mode: 'chat_only', 'chat_ranking', 'full'
 

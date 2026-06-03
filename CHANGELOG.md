@@ -5,10 +5,17 @@ All notable changes to The AI Counsel will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.2] - 2026-06-03
 
 ### Added
+- **Configurable date format**: Conversation timestamps in the sidebar can now be set to Auto (browser locale), MM/DD/YYYY, DD/MM/YYYY, or YYYY-MM-DD via Settings → Backup & Reset → Display Preferences. The setting is retroactive — all existing conversations update immediately.
 - **Release process documentation**: Added `docs/RELEASE.md` and AGENTS guidance so future maintainers and AI agents create both annotated Git tags and GitHub Releases for public versions.
+
+### Changed
+- **Global provider toggles**: `enabled_providers` and `direct_provider_toggles` now apply to **all** model pickers — Council Setup, Advisor Setup, and Settings. Previously they only affected council model pickers in Settings.
+- **Simplified Settings → Council Config**: Removed council member/chairman model selection, "I'm Feeling Lucky" randomizer, "Show free OpenRouter models only" filter, and related validation from Settings. Model composition is now managed exclusively via the welcome-screen Council Setup. Settings retains provider toggles (now global) and all three temperature sliders (Council Heat, Peer Ranking Heat, Chairman Heat).
+- **Provider toggle restructure**: Local (Ollama) is now standalone at the top; all remote providers (OpenRouter, Groq, Custom, Direct Connections) are grouped under a single "Remote APIs" master toggle.
+- **Stage 2 Heat moved**: The Peer Ranking temperature slider moved from Council System Prompts (Stage 2 tab) into the Council Config temperature section alongside the other sliders.
 
 ## [0.8.1] - 2026-06-02
 

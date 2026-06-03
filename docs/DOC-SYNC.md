@@ -100,15 +100,14 @@ Document these consistently everywhere they appear:
 
 | Surface | Model sources |
 |---------|----------------|
-| **LLM Council** (Settings → Council Config toggles) | `enabled_providers` + `direct_provider_toggles` filter which sources appear in **Settings** council pickers |
-| **LLM Advisors** (Advisor Setup) | **All configured providers** (API keys + Ollama URL + custom endpoint). **Ignores** council `enabled_providers` toggles |
-| **MCP / REST** | Use `GET /api/models`, `/api/models/direct`, `/api/ollama/tags`, `/api/custom-endpoint/models` — availability depends on keys, not council toggles |
+| **All UI pickers** (Council Setup, Advisor Setup) | `enabled_providers` + `direct_provider_toggles` filter which sources appear — **global**, applies to both Council and Advisors |
+| **MCP / REST** | Use `GET /api/models`, `/api/models/direct`, `/api/ollama/tags`, `/api/custom-endpoint/models` — availability depends on credentials, not UI toggles |
 
 ### Settings vs main screen (planned / shipped)
 
 | Data | Council main screen | Settings |
 |------|---------------------|----------|
-| `council_models`, `chairman_model` | Editable on welcome (Council Setup) **and** Settings — **same persisted fields**; locked in conversation after first message |
+| `council_models`, `chairman_model` | Editable on welcome (Council Setup) only; locked in conversation after first message |
 | `council_presets` | Welcome Council Setup UI + `PUT /api/settings` |
 | `advisor_presets` | Advisor Setup UI + `PUT /api/settings` |
 | Temperatures, prompts, provider toggles | Settings only |

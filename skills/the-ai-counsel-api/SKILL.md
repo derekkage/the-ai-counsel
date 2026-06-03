@@ -1,6 +1,6 @@
 ---
 name: the-ai-counsel-api
-version: 0.8.1
+version: 0.8.2
 description: The AI Counsel — MCP-first (10 action-based tools) when The AI Counsel MCP server is connected; REST/curl fallback when MCP is unavailable, for cron scripts, or raw SSE. Triggers on "ask the council", "run a debate", "configure models", "run a deliberation", "check council health", etc.
 ---
 
@@ -17,7 +17,7 @@ Use **Council** for direct answers, creative prompts, factual questions, and "gi
 
 **Transport rule (read first):** If The AI Counsel **MCP tools are available** in your session, **call them** — do **not** shell out to `curl` for the same operation. This skill’s REST sections are the **fallback reference** when MCP is missing, the SSE session is stale, or you need raw SSE/admin export.
 
-**MCP server (v0.8.1):** Built-in SSE at `http://localhost:8001/mcp/sse` (stdio: `python -m the_ai_counsel_mcp`). Exposes **10 action-based tools** (not 25). Verify via `GET /api/health` → `"mcp": {"tools": 10, "sse_url": "..."}`.
+**MCP server (v0.8.2):** Built-in SSE at `http://localhost:8001/mcp/sse` (stdio: `python -m the_ai_counsel_mcp`). Exposes **10 action-based tools** (not 25). Verify via `GET /api/health` → `"mcp": {"tools": 10, "sse_url": "..."}`.
 
 **Default base URL (REST fallback only):** `http://localhost:8001`  
 **Remote server:** replace with `http://<server-ip>:8001`
@@ -158,14 +158,11 @@ opencode-go:kimi-k2.5                  → Direct OpenCode Go (chat/completions 
 
 ## Provider & model availability
 
-**Council vs Advisors use different rules:**
+**Provider toggles are global:**
 
-| Mode | Which providers appear in model pickers |
-|------|----------------------------------------|
-| **LLM Council** (Settings → Council Config) | Sources enabled via `enabled_providers` and `direct_provider_toggles` |
-| **LLM Advisors** (Advisor Setup UI) | **All configured providers** — any provider with a saved API key, plus Ollama when `ollama_base_url` is set, plus custom endpoint when URL is configured. **Ignores** council `enabled_providers` toggles. |
+`enabled_providers` and `direct_provider_toggles` (Settings → Council Config) control which providers appear in **all** model pickers — Council Setup, Advisor Setup, and Settings temperature controls. A provider must be both **configured** (API key set / Ollama connected) and **enabled** (toggle on) for its models to appear. By default, providers are enabled when first configured.
 
-REST/MCP agents listing models should call the model list endpoints directly (`/api/models`, `/api/models/direct`, `/api/ollama/tags`, `/api/custom-endpoint/models`). Availability depends on credentials, not council toggles.
+REST/MCP agents listing models should call the model list endpoints directly (`/api/models`, `/api/models/direct`, `/api/ollama/tags`, `/api/custom-endpoint/models`). Availability depends on credentials, not UI toggles.
 
 ---
 
@@ -445,8 +442,9 @@ Key fields returned:
 - `chairman_model` — model that synthesizes the final answer
 - `execution_mode` — `"full"` / `"chat_ranking"` / `"chat_only"` (persisted; omitted from some GET responses — use export for full blob)
 - `search_provider` — active search provider
-- `enabled_providers` — **council-only** toggles for Settings pickers (`openrouter`, `ollama`, `groq`, `direct`, `custom`)
-- `direct_provider_toggles` — per-direct-provider toggles for council Settings pickers
+- `enabled_providers` — global provider toggles (`openrouter`, `ollama`, `groq`, `direct`, `custom`) — apply to all model pickers (Council, Advisors, Settings)
+- `direct_provider_toggles` — per-direct-provider toggles (also global)
+- `date_format` — display date format (`"auto"`, `"MM/DD/YYYY"`, `"DD/MM/YYYY"`, `"YYYY-MM-DD"`)
 - `advisor_presets` — saved advisor lineups (see §18)
 - `council_presets` — saved council lineups (members + chairman; see §18b)
 - `*_api_key_set` — boolean flags (never returns actual keys)
@@ -520,7 +518,7 @@ curl -X PUT http://localhost:8001/api/settings \
 
 **`enabled_providers` keys:** `openrouter`, `ollama`, `groq`, `direct` (master toggle for all direct), `custom`
 
-**Note:** These toggles filter model lists in **Settings → Council Config** only. They do **not** restrict Advisor Setup model pickers (advisors use all configured providers).
+**Note:** These toggles are **global** — they filter model lists in all pickers (Council Setup, Advisor Setup, and Settings).
 
 **`direct_provider_toggles` keys:** `openai`, `anthropic`, `google`, `mistral`, `deepseek`, `groq`, `nvidia`, `opencode-zen`, `opencode-go`
 
@@ -943,7 +941,7 @@ curl -X PUT http://localhost:8001/api/settings \
 
 MCP: `council_settings` action `get` returns `council_presets`. Preset CRUD: `council_settings` actions `list_presets`, `save_preset`, `delete_preset`, `set_default_preset`.
 
-**UI behavior:** Main-screen editor auto-saves `council_models` / `chairman_model` on each change. Lineup is read-only in a conversation after the first message. Settings remains the place for temperatures, prompts, and provider toggles.
+**UI behavior:** Main-screen editor (Council Setup) is the **only** place to pick council members and chairman — auto-saves on each change. Lineup is read-only in a conversation after the first message. Settings provides provider toggles (global) and temperature controls only; model selection was removed from Settings to avoid duplication.
 
 ---
 

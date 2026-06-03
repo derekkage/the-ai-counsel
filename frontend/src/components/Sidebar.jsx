@@ -5,6 +5,29 @@ const getConversationMode = (conversation) => (
   conversation?.mode === 'advisors' ? 'advisors' : 'council'
 );
 
+const DATE_FORMAT_OPTIONS = {
+  'auto':       undefined,
+  'MM/DD/YYYY': { year: 'numeric', month: '2-digit', day: '2-digit' },
+  'DD/MM/YYYY': { year: 'numeric', month: '2-digit', day: '2-digit' },
+  'YYYY-MM-DD': { year: 'numeric', month: '2-digit', day: '2-digit' },
+};
+
+const DATE_FORMAT_LOCALES = {
+  'auto':       undefined,
+  'MM/DD/YYYY': 'en-US',
+  'DD/MM/YYYY': 'en-GB',
+  'YYYY-MM-DD': 'sv-SE',
+};
+
+function formatTimestamp(isoString, dateFormat) {
+  const d = new Date(isoString);
+  const locale = DATE_FORMAT_LOCALES[dateFormat] || undefined;
+  const opts = DATE_FORMAT_OPTIONS[dateFormat] || undefined;
+  const datePart = d.toLocaleDateString(locale, opts);
+  const timePart = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+  return `${datePart} ${timePart}`;
+}
+
 export default function Sidebar({
   conversations,
   currentConversationId,
@@ -18,6 +41,7 @@ export default function Sidebar({
   isOpen,
   onClose,
   onGoHome,
+  dateFormat = 'auto',
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +89,7 @@ export default function Sidebar({
         <div className="sidebar-title-wrapper">
           <div className="sidebar-title">The AI <span className="title-plus">Counsel</span></div>
           <div className="sidebar-subtitle">Created by: <a href="https://github.com/jacob-bd" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none', borderBottom: '1px dotted rgba(255,255,255,0.3)', paddingBottom: '1px', transition: 'border-color 0.2s' }} onMouseEnter={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.7)'} onMouseLeave={e => e.target.style.borderBottomColor = 'rgba(255,255,255,0.3)'}>Jacob Ben-David</a></div>
-          <div className="sidebar-version">v0.8.1</div>
+          <div className="sidebar-version">v0.8.2</div>
         </div>
         <button
           className="icon-button"
@@ -143,7 +167,7 @@ export default function Sidebar({
                   {conv.title || 'New Conversation'}
                 </div>
                 <div className="conversation-meta">
-                  <span>{new Date(conv.created_at).toLocaleDateString()}</span>
+                  <span>{formatTimestamp(conv.created_at, dateFormat)}</span>
                   {isLoading && conv.id === currentConversationId ? (
                     <button className="stop-generation-btn small" onClick={handleAbortClick}>
                       Stop

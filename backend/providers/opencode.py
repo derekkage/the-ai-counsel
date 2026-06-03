@@ -185,6 +185,7 @@ class OpenCodeProvider(LLMProvider):
             payload=payload,
             parse_response=self._parse_messages,
             timeout=timeout,
+            use_anthropic_headers=True,
         )
 
     @staticmethod
@@ -198,24 +199,53 @@ class OpenCodeProvider(LLMProvider):
     @staticmethod
     def _parse_messages(data: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            content = data["content"][0]["text"]
+            content_field = data.get("content")
+            if isinstance(content_field, str):
+                return {"content": content_field, "usage": data.get("usage"), "error": False}
+            if isinstance(content_field, list) and content_field:
+                # Find the text block, skipping thinking/signature blocks
+                for item in content_field:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        return {"content": item["text"], "usage": data.get("usage"), "error": False}
+                # No explicit text block — try first item with a text key
+                for item in content_field:
+                    if isinstance(item, dict) and "text" in item:
+                        return {"content": item["text"], "usage": data.get("usage"), "error": False}
+                # Last resort: first string item
+                for item in content_field:
+                    if isinstance(item, str):
+                        return {"content": item, "usage": data.get("usage"), "error": False}
+            # Fall back to chat/completions shape
+            choices = data.get("choices")
+            if choices and isinstance(choices, list):
+                return {"content": choices[0]["message"]["content"], "usage": data.get("usage"), "error": False}
+            logger.warning("Unrecognized messages response keys: %s", list(data.keys()))
+            return {"error": True, "error_message": f"Unexpected response shape: {list(data.keys())}"}
         except (KeyError, IndexError, TypeError) as e:
+            logger.warning("Failed to parse messages response: %s — data keys: %s", e, list(data.keys()))
             return {"error": True, "error_message": f"Unexpected response shape: {e}"}
-        return {"content": content, "usage": data.get("usage"), "error": False}
 
     async def _request_with_retries(
         self, *, api_key: str, model: str, url: str,
         payload: Dict[str, Any],
         parse_response,
         timeout: float,
+        use_anthropic_headers: bool = False,
     ) -> Dict[str, Any]:
         last_error: Dict[str, str] = {}
         for attempt in range(MAX_RETRIES):
             try:
-                headers = {
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                }
+                if use_anthropic_headers:
+                    headers = {
+                        "Content-Type": "application/json",
+                        "x-api-key": api_key,
+                        "anthropic-version": "2023-06-01",
+                    }
+                else:
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                    }
                 async with httpx.AsyncClient(timeout=timeout) as client:
                     response = await client.post(url, headers=headers, json=payload)
 

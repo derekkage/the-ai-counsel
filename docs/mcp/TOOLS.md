@@ -181,8 +181,8 @@ Manage council configuration and presets.
 | `search_result_count` | integer | `update` | Number of results to fetch (5–15, default 8) |
 | `search_hybrid_mode` | boolean | `update` | DuckDuckGo: combine web + news (default `true`) |
 | `full_content_results` | integer | `update` | Jina Reader full-text fetch count (0–10, default 3; 0 = disabled) |
-| `enabled_providers` | object | `update` | Council-only provider toggles |
-| `direct_provider_toggles` | object | `update` | Per-direct-provider council toggles (keys: `openai`, `anthropic`, `google`, `mistral`, `deepseek`, `groq`, `nvidia`, `opencode-zen`, `opencode-go`) |
+| `enabled_providers` | object | `update` | Global provider toggles (apply to all model pickers) |
+| `direct_provider_toggles` | object | `update` | Per-direct-provider toggles (keys: `openai`, `anthropic`, `google`, `mistral`, `deepseek`, `groq`, `nvidia`, `opencode-zen`, `opencode-go`) — also global |
 | `preset_id` | string | `save_preset`, `delete_preset`, `set_default_preset` | Preset UUID |
 | `preset_name` | string | `save_preset` | Display name |
 | `council_models` | string[] | `save_preset` | Members for preset (alias: `models`) |
@@ -196,7 +196,7 @@ Manage council configuration and presets.
 {"status": "updated", "fields": ["council_models", "execution_mode"]}
 ```
 
-Council **Settings** pickers respect `enabled_providers`; welcome-screen Council Setup and REST model lists use all configured providers (like advisors).
+Provider toggles (`enabled_providers`, `direct_provider_toggles`) are **global** — they filter models in all UI pickers (Council Setup, Advisor Setup, and Settings). REST model list endpoints use credentials only, not UI toggles.
 
 ---
 

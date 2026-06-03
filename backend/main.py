@@ -1401,6 +1401,9 @@ class UpdateSettingsRequest(BaseModel):
     chairman_temperature: Optional[float] = None
     stage2_temperature: Optional[float] = None
 
+    # Display Preferences
+    date_format: Optional[str] = None
+
     # Execution Mode
     execution_mode: Optional[str] = None
 
@@ -1509,6 +1512,9 @@ async def get_app_settings():
         "advisor_tiebreaker_prompt": settings.advisor_tiebreaker_prompt,
         "advisor_presets": [p.model_dump() if hasattr(p, "model_dump") else p for p in settings.advisor_presets],
         "council_presets": [p.model_dump() if hasattr(p, "model_dump") else p for p in settings.council_presets],
+
+        # Display Preferences
+        "date_format": settings.date_format,
 
         # Iterative Debate
         "critique_mode": settings.critique_mode,
@@ -1709,6 +1715,12 @@ async def update_app_settings(request: UpdateSettingsRequest):
     if request.stage2_temperature is not None:
         updates["stage2_temperature"] = request.stage2_temperature
 
+    if request.date_format is not None:
+        valid_formats = ("auto", "MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD")
+        if request.date_format not in valid_formats:
+            raise HTTPException(status_code=400, detail=f"Invalid date_format. Must be one of: {list(valid_formats)}")
+        updates["date_format"] = request.date_format
+
     if request.execution_mode is not None:
         _validate_execution_mode(request.execution_mode)
         updates["execution_mode"] = request.execution_mode
@@ -1818,6 +1830,9 @@ async def update_app_settings(request: UpdateSettingsRequest):
         "advisor_tiebreaker_prompt": settings.advisor_tiebreaker_prompt,
         "advisor_presets": [p.model_dump() if hasattr(p, "model_dump") else p for p in settings.advisor_presets],
         "council_presets": [p.model_dump() if hasattr(p, "model_dump") else p for p in settings.council_presets],
+
+        # Display Preferences
+        "date_format": settings.date_format,
 
         # Iterative Debate
         "critique_mode": settings.critique_mode,

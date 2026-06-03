@@ -89,23 +89,30 @@ const DIRECT_PROVIDER_KEY_FLAGS = {
   'opencode go': 'opencode_api_key_set',
 };
 
-/** Advisor setup shows models for configured providers, not only council toggles. */
+/** Filter direct models respecting global provider toggles. */
 function filterDirectModelsForAdvisor(directModels, settings) {
+  const ep = settings.enabled_providers || {};
+  const dt = settings.direct_provider_toggles || {};
   return directModels.filter((model) => {
-    if (model.provider === 'Groq') return settings.groq_api_key_set;
-    const providerKey = (model.provider || '').toLowerCase();
+    if (model.provider === 'Groq') {
+      return settings.groq_api_key_set && (ep.groq !== false);
+    }
+    if (!ep.direct) return false;
+    const providerKey = (model.provider || '').toLowerCase().replace(/\s+/g, '-');
+    if (dt[providerKey] === false) return false;
     const flag = DIRECT_PROVIDER_KEY_FLAGS[providerKey];
     return flag ? settings[flag] : false;
   });
 }
 
-/** Advisors use every configured provider — independent of Council Config toggles. */
+/** Model sources respect global provider toggles. */
 function getAdvisorModelSources(settings) {
+  const ep = settings.enabled_providers || {};
   return {
-    openrouter: !!settings.openrouter_api_key_set,
-    ollama: !!settings.ollama_base_url,
-    direct: hasAnyDirectProviderKey(settings),
-    custom: !!settings.custom_endpoint_url,
+    openrouter: !!settings.openrouter_api_key_set && (ep.openrouter !== false),
+    ollama: !!settings.ollama_base_url && (ep.ollama !== false),
+    direct: hasAnyDirectProviderKey(settings) && (ep.direct !== false),
+    custom: !!settings.custom_endpoint_url && (ep.custom !== false),
   };
 }
 

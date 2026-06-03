@@ -107,6 +107,7 @@ function App() {
   const [debateRounds, setDebateRounds] = useState(1);
   const [autoConverge, setAutoConverge] = useState(true);
   const [convergenceThreshold, setConvergenceThreshold] = useState(2);
+  const [dateFormat, setDateFormat] = useState('auto');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [appMode, setAppMode] = useState(null); // null shows landing page
   const abortControllerRef = useRef(null);
@@ -144,9 +145,10 @@ function App() {
 
   useEffect(() => {
     if (executionMode === 'full' && (!chairmanModel || !chairmanModel.trim())) {
-      setExecutionMode('chat_ranking');
+      const memberCount = (councilModels || []).filter(m => m && m.trim()).length;
+      setExecutionMode(memberCount <= 1 ? 'chat_only' : 'chat_ranking');
     }
-  }, [chairmanModel, executionMode]);
+  }, [chairmanModel, executionMode, councilModels]);
 
   // Check initial configuration on mount
   useEffect(() => {
@@ -166,6 +168,7 @@ function App() {
       setDebateRounds(settings.debate_rounds || 1);
       setAutoConverge(settings.auto_converge !== undefined ? settings.auto_converge : true);
       setConvergenceThreshold(settings.convergence_threshold || 2);
+      setDateFormat(settings.date_format || 'auto');
 
       setAvailableSearchProviders(buildAvailableSearchProviders(settings));
 
@@ -238,6 +241,7 @@ function App() {
       setDebateRounds(settings.debate_rounds || 1);
       setAutoConverge(settings.auto_converge !== undefined ? settings.auto_converge : true);
       setConvergenceThreshold(settings.convergence_threshold || 2);
+      setDateFormat(settings.date_format || 'auto');
 
       setCouncilConfigured(computeCouncilConfigured(models));
     } catch (error) {
@@ -821,7 +825,8 @@ function App() {
 
     let effectiveMode = executionMode;
     if (effectiveMode === 'full' && (!chairmanModel || !chairmanModel.trim())) {
-      effectiveMode = 'chat_ranking';
+      const memberCount = (councilModels || []).filter(m => m && m.trim()).length;
+      effectiveMode = memberCount <= 1 ? 'chat_only' : 'chat_ranking';
     }
 
     stopProgressPolling();
@@ -1547,6 +1552,7 @@ function App() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onGoHome={() => resetAppState(null)}
+        dateFormat={dateFormat}
       />
 
       <div className="main-area">
