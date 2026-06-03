@@ -346,15 +346,13 @@ export default function ChatInterface({
 
             {/* Floating Command Capsule — hidden for advisor debates */}
             {mode !== 'advisors' && <div className="input-area">
-                {(debateRounds > 1 || critiqueMode !== 'freeform') && (
-                    <DebateConfigBar
-                        critiqueMode={critiqueMode}
-                        debateRounds={debateRounds}
-                        autoConverge={autoConverge}
-                        convergenceThreshold={convergenceThreshold}
-                        onOpenSettings={onOpenSettings}
-                    />
-                )}
+                <DebateConfigBar
+                    critiqueMode={critiqueMode}
+                    debateRounds={debateRounds}
+                    autoConverge={autoConverge}
+                    convergenceThreshold={convergenceThreshold}
+                    onOpenSettings={onOpenSettings}
+                />
                 {!councilConfigured ? (
                     <div className="input-container config-required">
                         <span className="config-message">
