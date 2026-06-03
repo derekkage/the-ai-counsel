@@ -284,12 +284,23 @@
   font-weight: 500;
   color: #e2e8f0;
   margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.conversation-title-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-item:hover .conversation-title-text {
+  white-space: normal;
+  overflow: visible;
+  word-break: break-word;
 }
 
 .conv-mode-tag {
