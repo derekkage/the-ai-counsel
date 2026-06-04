@@ -77,20 +77,23 @@ When bumping version, update **all three together** (see `AGENTS.md` → Version
 | `docs/QUICKSTART.md` | Step-by-step |
 | `CHANGELOG.md` | |
 
-### Sidebar run summaries (`run_summary` on conversation index)
+### Sidebar index fields (`run_summary`, conversation cost)
 
 | File | Action |
 |------|--------|
-| `backend/storage.py` | `derive_run_summary`, `_build_index_entry`, index field shape |
-| `backend/main.py` | Assistant metadata fields that feed the summary (`web_search`, `auto_converge`, advisor consensus, etc.) |
-| `frontend/src/components/Sidebar.jsx` | Render `conv.run_summary`; sidebar search includes summary text |
+| `backend/storage.py` | `derive_run_summary`, `derive_conversation_cost`, `_build_index_entry`, index field shape |
+| `backend/main.py` | `ConversationMetadata` must include all index fields (`run_summary`, `total_cost`, `cost_status`, `total_calls`); assistant metadata that feeds summaries |
+| `frontend/src/components/Sidebar.jsx` | Render `conv.run_summary` and cost pill; sidebar search includes summary text |
+| `frontend/src/utils/formatCost.js` | Shared USD formatting for sidebar pill and `CostReport.jsx` |
 | `frontend/src/constants/critiqueMode.js` | Compact critique labels — keep in sync with `CRITIQUE_MODE_LABELS` in `backend/storage.py` |
 | `backend/tests/test_run_summary.py` | Summary string contract |
+| `backend/tests/test_conversation_cost.py` | Cumulative cost index contract |
 | `CHANGELOG.md` | User-facing sidebar behavior |
 
 Rules:
 - Summary appears only after title is assigned (not while title is `"New Conversation"`).
-- Server builds the string; frontend displays index data only.
+- Cost appears once any assistant message has `metadata.cost_report` (includes follow-up totals).
+- Server builds index fields; frontend displays index data only.
 - Existing conversations need a save or `rebuild_index()` to backfill index entries.
 
 ### MCP-only (new/changed tools)

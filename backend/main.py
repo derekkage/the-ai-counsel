@@ -509,6 +509,9 @@ class ConversationMetadata(BaseModel):
     mode: str = "council"
     message_count: int
     run_summary: Optional[str] = None
+    total_cost: Optional[float] = None
+    cost_status: Optional[str] = None
+    total_calls: Optional[int] = None
 
 
 class Conversation(BaseModel):

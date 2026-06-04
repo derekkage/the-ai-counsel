@@ -600,12 +600,16 @@ for m in models[:10]:
     "title": "Remote-First vs Hybrid Policy",
     "mode": "council",
     "message_count": 2,
-    "run_summary": "2 rnd · Paragraph · Auto-converge · Search"
+    "run_summary": "2 rnd · Paragraph · Auto-converge · Search",
+    "total_cost": 0.0042,
+    "cost_status": "known",
+    "total_calls": 12
   }
 ]
 ```
 
 - `run_summary` is optional — present only after the conversation has a real title (not `"New Conversation"`) and the latest assistant message has derivable metadata.
+- `total_cost`, `cost_status` (`known` | `estimated` | `partial` | `free`), and `total_calls` are optional — cumulative across all assistant messages with `metadata.cost_report`.
 - Existing conversations backfill on next save or after `rebuild_index()`.
 
 ---

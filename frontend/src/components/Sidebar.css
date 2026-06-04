@@ -334,10 +334,42 @@
 .conversation-meta {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   font-size: 11px;
   color: var(--text-muted);
-  height: 24px;
+  min-height: 24px;
+}
+
+.conversation-meta__left {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.conversation-timestamp {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.conversation-timestamp__time {
+  font-size: 10px;
+  opacity: 0.85;
+}
+
+.conversation-cost-pill {
+  flex-shrink: 0;
+  font-family: var(--font-code);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
 }
 
 .delete-btn {

@@ -1,14 +1,7 @@
 import './CostReport.css';
+import { formatUsd } from '../utils/formatCost';
 
 const numberFormatter = new Intl.NumberFormat(undefined);
-
-function formatUsd(value, unknown = false) {
-  if (unknown || typeof value !== 'number' || Number.isNaN(value)) return 'Unknown';
-  if (value === 0) return '$0.00';
-  if (value < 0.000001) return '<$0.000001';
-  if (value < 0.01) return `$${value.toFixed(6)}`;
-  return `$${value.toFixed(4)}`;
-}
 
 function formatTokens(value) {
   if (typeof value !== 'number') return '0';

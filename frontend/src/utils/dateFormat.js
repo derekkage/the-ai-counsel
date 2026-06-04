@@ -19,11 +19,14 @@ export function formatDatePart(date, dateFormat) {
   return d.toLocaleDateString(locale, opts);
 }
 
-export function formatTimestamp(isoString, dateFormat) {
+export function formatTimePart(isoString, dateFormat) {
   const d = new Date(isoString);
   const locale = DATE_FORMAT_LOCALES[dateFormat] || undefined;
-  const opts = DATE_FORMAT_OPTIONS[dateFormat] || undefined;
-  const datePart = d.toLocaleDateString(locale, opts);
-  const timePart = d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+}
+
+export function formatTimestamp(isoString, dateFormat) {
+  const datePart = formatDatePart(isoString, dateFormat);
+  const timePart = formatTimePart(isoString, dateFormat);
   return `${datePart} ${timePart}`;
 }

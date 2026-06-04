@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { formatTimestamp } from '../utils/dateFormat';
+import { formatDatePart, formatTimePart } from '../utils/dateFormat';
+import { formatSidebarCost, sidebarCostTooltip } from '../utils/formatCost';
 import './Sidebar.css';
 
 const getConversationMode = (conversation) => (
@@ -156,7 +157,24 @@ export default function Sidebar({
                   </div>
                 )}
                 <div className="conversation-meta">
-                  <span>{formatTimestamp(conv.created_at, dateFormat)}</span>
+                  <div className="conversation-meta__left">
+                    {conv.total_cost != null && (
+                      <span
+                        className="conversation-cost-pill"
+                        title={sidebarCostTooltip(conv.total_cost, conv.cost_status, conv.total_calls)}
+                      >
+                        {formatSidebarCost(conv.total_cost, conv.cost_status)}
+                      </span>
+                    )}
+                    <span className="conversation-timestamp">
+                      <span className="conversation-timestamp__date">
+                        {formatDatePart(conv.created_at, dateFormat)}
+                      </span>
+                      <span className="conversation-timestamp__time">
+                        {formatTimePart(conv.created_at, dateFormat)}
+                      </span>
+                    </span>
+                  </div>
                   {isLoading && conv.id === currentConversationId ? (
                     <button className="stop-generation-btn small" onClick={handleAbortClick}>
                       Stop

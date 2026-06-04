@@ -169,6 +169,54 @@ def derive_run_summary(conversation: Dict[str, Any]) -> Optional[str]:
     return " · ".join(parts) if parts else None
 
 
+def derive_conversation_cost(conversation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Sum cost_report totals across all assistant messages for sidebar display."""
+    total_cost = 0.0
+    has_any_cost = False
+    has_unknown_costs = False
+    has_estimates = False
+    total_calls = 0
+
+    for msg in conversation.get("messages", []):
+        if msg.get("role") != "assistant" or msg.get("error"):
+            continue
+        report = (msg.get("metadata") or {}).get("cost_report")
+        if not isinstance(report, dict):
+            continue
+
+        has_any_cost = True
+        if report.get("has_unknown_costs"):
+            has_unknown_costs = True
+        if report.get("has_estimates"):
+            has_estimates = True
+
+        report_total = report.get("total_cost")
+        if isinstance(report_total, (int, float)) and not isinstance(report_total, bool):
+            total_cost += float(report_total)
+
+        report_calls = report.get("total_calls")
+        if isinstance(report_calls, int):
+            total_calls += report_calls
+
+    if not has_any_cost:
+        return None
+
+    if has_unknown_costs:
+        cost_status = "partial"
+    elif has_estimates:
+        cost_status = "estimated"
+    elif total_cost == 0:
+        cost_status = "free"
+    else:
+        cost_status = "known"
+
+    return {
+        "total_cost": round(total_cost, 6),
+        "cost_status": cost_status,
+        "total_calls": total_calls,
+    }
+
+
 def _build_index_entry(
     conversation: Dict[str, Any],
     *,
@@ -184,6 +232,11 @@ def _build_index_entry(
     run_summary = derive_run_summary(conversation)
     if run_summary:
         entry["run_summary"] = run_summary
+    cost = derive_conversation_cost(conversation)
+    if cost:
+        entry["total_cost"] = cost["total_cost"]
+        entry["cost_status"] = cost["cost_status"]
+        entry["total_calls"] = cost["total_calls"]
     return entry
 
 
