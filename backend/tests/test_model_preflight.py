@@ -72,8 +72,10 @@ def test_is_transient_rate_limit_classification():
 
     # Status code 429 is always rate limit
     assert _is_transient_rate_limit(429, "Any message") is True
-    # Status code 503 is always rate limit / temporary congestion
-    assert _is_transient_rate_limit(503, "Service Unavailable") is True
+    # Status code 503 is only soft-failed when the body indicates transient congestion
+    assert _is_transient_rate_limit(503, "Service Unavailable") is False
+    assert _is_transient_rate_limit(503, "temporary endpoint congestion") is True
+    assert _is_transient_rate_limit(503, "rate limit from upstream") is True
 
     # Standard substrings are rate limit
     assert _is_transient_rate_limit(400, "rate limit exceeded") is True
@@ -122,5 +124,21 @@ async def test_preflight_hard_fails_on_genuine_error():
     assert result.rate_limited == []
     assert mock_query.call_count == 1  # No retries for hard failures
 
+
+@pytest.mark.asyncio
+async def test_preflight_hard_fails_on_plain_503():
+    with patch("backend.model_preflight.query_model", new_callable=AsyncMock) as mock_query:
+        mock_query.return_value = {
+            "error": True,
+            "error_message": "Service Unavailable",
+            "debug_timeline": [{"status": 503}]
+        }
+
+        result = await preflight_models(["custom:unstable-model"], timeout=1.0)
+
+    assert result.ok is False
+    assert result.failures == [{"model": "custom:unstable-model", "error": "Service Unavailable"}]
+    assert result.rate_limited == []
+    assert mock_query.call_count == 1
 
 

@@ -31,10 +31,11 @@ PREFLIGHT_MAX_WALL_SECONDS = 12.0
 def _is_transient_rate_limit(status_code: int, message: str) -> bool:
     """Classify an error as a transient rate-limit or temporary service congestion.
 
-    Matches HTTP 429 (Too Many Requests), HTTP 503 (Service Unavailable),
-    or error messages containing typical rate-limiting, quota, or throttling phrases.
+    Matches HTTP 429 (Too Many Requests), or error messages containing typical
+    rate-limiting, quota, or throttling phrases. A plain HTTP 503 is not enough
+    by itself because it can also represent a hard service outage.
     """
-    if status_code in (429, 503):
+    if status_code == 429:
         return True
     body = (message or "").lower()
     if status_code not in {200, 0} and any(
