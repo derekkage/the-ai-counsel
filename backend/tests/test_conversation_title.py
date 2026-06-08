@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from backend import storage
 
 def test_derive_conversation_title_normal():

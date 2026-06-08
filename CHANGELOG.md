@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-06-08
+
+### Added
+- **Ruff dev tooling**: Added Ruff to the Python dev dependency group so lint checks run through `uv run ruff`.
+
+### Fixed
+- **Conversation title repair**: New and existing conversations with default/empty titles now derive a readable title from the first user message without overwriting explicit custom titles.
+- **Preflight rate-limit resilience**: Transient rate-limit preflight failures are retried and soft-failed so otherwise valid models are not dropped from a council run.
+- **Plain 503 preflight handling**: A bare `503 Service Unavailable` remains a hard preflight failure unless the response body indicates rate limiting, quota, throttling, temporary congestion, or a similar transient condition.
+
 ## [0.9.0] - 2026-06-03
 
 ### Added
