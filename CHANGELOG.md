@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-06-09
+
+### Added
+- **Auto-enable API connectors**: Settings key validation tests for Ollama, OpenRouter, Groq, Custom OpenAI, and Direct connections now automatically toggle on and enable the provider on successful connection tests.
+
+### Fixed
+- **Stray ReferenceError**: Fixed a ReferenceError `activeConversationIdRef is not defined` that dropped council question submissions at the API call stage.
+
 ## [0.9.1] - 2026-06-08
 
 ### Added
