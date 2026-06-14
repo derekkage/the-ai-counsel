@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Literal, Optional
 import logging
 import os
@@ -12,6 +12,7 @@ import secrets
 import uuid
 import json
 import asyncio
+from datetime import datetime, timezone
 
 from . import storage
 from .council import generate_conversation_title, generate_search_query, stage1_collect_responses, stage2_collect_rankings, stage3_synthesize_final, calculate_aggregate_rankings, PROVIDERS
@@ -338,6 +339,14 @@ class StartDebateRequest(BaseModel):
 ExecutionMode = Literal["chat_only", "chat_ranking", "full"]
 
 
+class FileAttachment(BaseModel):
+    name: str = Field(max_length=256)
+    type: str = Field(max_length=32)
+    content: str = Field(max_length=5_242_880)
+    mime_type: str = Field(max_length=128)
+    size: int = Field(le=10_485_760)
+
+
 class SendMessageRequest(BaseModel):
     content: str
     web_search: bool = False
@@ -346,6 +355,7 @@ class SendMessageRequest(BaseModel):
     council_models: Optional[List[str]] = None
     chairman_model: Optional[str] = None
     debate_rounds: Optional[int] = None
+    file_attachments: Optional[List[FileAttachment]] = None
 
 
 class AskRequest(BaseModel):
@@ -398,12 +408,41 @@ async def _fetch_search_context(content: str, settings: Settings, provider_overr
     return search_result["results"], search_query, search_result
 
 
+def _build_attachment_context(attachments: Optional[List[FileAttachment]]) -> str:
+    """Build a context block from file attachments to prepend to LLM prompts."""
+    if not attachments:
+        return ""
+    blocks = []
+    for att in attachments:
+        blocks.append(f"[Attached: {att.name}]\n{att.content}")
+    return "\n\n---\n\n".join(blocks)
+
+
+def _prepare_file_attachments(body: SendMessageRequest, conversation_id: str, conversation: dict) -> str:
+    """Persist file attachments and return enriched content with attachment context prepended."""
+    file_ctx = _build_attachment_context(body.file_attachments)
+    enriched_content = f"{file_ctx}\n\n{body.content}" if file_ctx else body.content
+    storage.add_user_message(
+        conversation_id, body.content, conversation=conversation,
+        attachments=[a.model_dump() for a in body.file_attachments] if body.file_attachments else None,
+    )
+    return enriched_content
+
+
 def _build_chat_history(conversation: Dict[str, Any]) -> List[Dict[str, str]]:
     """Extract prior turns from a conversation into [{role, content}, ...] for multi-turn context."""
     history = []
     for msg in conversation.get("messages", []):
         if msg["role"] == "user":
-            history.append({"role": "user", "content": msg["content"]})
+            content = msg["content"]
+            attachments = msg.get("attachments")
+            if attachments:
+                file_blocks = "\n\n---\n\n".join(
+                    f"[Attached: {att.get('name', 'file')}]\n{att.get('content', '')}"
+                    for att in attachments
+                )
+                content = f"{file_blocks}\n\n{content}"
+            history.append({"role": "user", "content": content})
         elif msg["role"] == "assistant":
             # Prefer chairman synthesis (stage3), fall back to first stage1 response
             content = None
@@ -646,8 +685,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
         cost_report = None
         _register_run(conversation_id, body.execution_mode)
         try:
-            storage.add_user_message(conversation_id, body.content, conversation=conversation)
-
+            enriched_content = _prepare_file_attachments(body, conversation_id, conversation)
             preflight_error = await _run_model_preflight(_build_council_preflight_models(body))
             if preflight_error:
                 storage.add_error_message(conversation_id, preflight_error)
@@ -656,7 +694,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
 
             # Start title generation in parallel (don't await yet)
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(body.content))
+                title_task = asyncio.create_task(generate_conversation_title(enriched_content))
 
             search_context = ""
             search_query = ""
@@ -704,7 +742,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
 
             total_models = 0
 
-            async for item in stage1_collect_responses(body.content, search_context, request, models_override=body.council_models, history=history):
+            async for item in stage1_collect_responses(enriched_content, search_context, request, models_override=body.council_models, history=history):
                 if isinstance(item, int):
                     total_models = item
                     _active_runs[conversation_id]["progress"]["stage1"]["total"] = total_models
@@ -733,7 +771,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                 await asyncio.sleep(0.05)
 
                 # Iterate over the async generator
-                async for item in stage2_collect_rankings(body.content, stage1_results, search_context, request):
+                async for item in stage2_collect_rankings(enriched_content, stage1_results, search_context, request):
                     # First item is the label mapping
                     if isinstance(item, dict) and not item.get('model'):
                         label_to_model = item
@@ -764,7 +802,7 @@ async def send_message_stream(conversation_id: str, body: SendMessageRequest, re
                     print("Client disconnected before Stage 3")
                     raise asyncio.CancelledError("Client disconnected")
 
-                stage3_result = await stage3_synthesize_final(body.content, stage1_results, stage2_results, search_context, chairman_override=body.chairman_model)
+                stage3_result = await stage3_synthesize_final(enriched_content, stage1_results, stage2_results, search_context, chairman_override=body.chairman_model)
                 _active_runs[conversation_id]["stage3_response"] = stage3_result
                 yield f"data: {json.dumps({'type': 'stage3_complete', 'data': stage3_result})}\n\n"
 
@@ -877,7 +915,7 @@ async def send_debate_message_stream(conversation_id: str, body: SendMessageRequ
         debate_converged = False
         _register_run(conversation_id, body.execution_mode)
         try:
-            storage.add_user_message(conversation_id, body.content, conversation=conversation)
+            enriched_content = _prepare_file_attachments(body, conversation_id, conversation)
 
             preflight_error = await _run_model_preflight(_build_council_preflight_models(body))
             if preflight_error:
@@ -887,7 +925,7 @@ async def send_debate_message_stream(conversation_id: str, body: SendMessageRequ
 
             # Start title generation in parallel
             if is_first_message:
-                title_task = asyncio.create_task(generate_conversation_title(body.content))
+                title_task = asyncio.create_task(generate_conversation_title(enriched_content))
 
             search_context = ""
             search_query = ""
@@ -930,7 +968,7 @@ async def send_debate_message_stream(conversation_id: str, body: SendMessageRequ
             effective_rounds = min(max(effective_rounds, 1), MAX_DEBATE_ROUNDS)
 
             async for event in run_iterative_debate(
-                body.content, search_context, request, body.execution_mode,
+                enriched_content, search_context, request, body.execution_mode,
                 models_override=body.council_models,
                 chairman_override=body.chairman_model,
                 history=history,
@@ -1263,7 +1301,7 @@ async def send_message_sync(conversation_id: str, body: SendMessageRequest):
     if preflight_error:
         raise HTTPException(status_code=400, detail=preflight_error)
 
-    storage.add_user_message(conversation_id, body.content, conversation=conversation)
+    storage.add_user_message(conversation_id, body.content, conversation=conversation, attachments=[a.model_dump() for a in body.file_attachments] if body.file_attachments else None)
 
     search_context = ""
     search_query = ""
@@ -1582,6 +1620,55 @@ async def import_settings(new_settings: Settings):
     normalized = Settings(**_normalize_prompt_defaults(new_settings.model_dump()))
     save_settings(normalized)
     return {"status": "imported", "message": "Settings imported successfully"}
+
+
+@app.get("/api/export")
+async def export_data(request: Request):
+    """Export all conversations and settings (admin-gated)."""
+    _require_admin(request)
+    conversations = storage.export_all_conversations()
+    settings = get_settings()
+    return {
+        "version": 1,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "conversations": conversations,
+        "settings": settings.model_dump(mode="json"),
+    }
+
+
+class ImportRequest(BaseModel):
+    conversations: Optional[List[Dict[str, Any]]] = None
+    settings: Optional[Dict[str, Any]] = None
+    version: int
+
+
+_SAFE_IMPORT_SETTINGS_KEYS = {
+    "search_provider", "search_keyword_extraction", "search_result_count",
+    "search_hybrid_mode", "council_models", "chairman_model",
+    "council_temperature", "chairman_temperature", "stage2_temperature",
+    "date_format", "response_language", "execution_mode",
+    "critique_mode", "debate_rounds", "auto_converge", "convergence_threshold",
+    "stage1_prompt", "stage2_prompt", "stage3_prompt", "stage4_prompt",
+    "title_prompt", "query_prompt",
+    "advisor_default_model", "advisor_tiebreaker_model", "advisor_temperature",
+    "advisor_default_rounds", "advisor_round1_prompt", "advisor_followup_prompt",
+    "advisor_cross_pollination_prompt", "advisor_verdict_prompt", "advisor_tiebreaker_prompt",
+    "full_content_results", "show_free_only",
+    "council_member_filters", "chairman_filter", "search_query_filter",
+    "enabled_providers", "direct_provider_toggles",
+    "advisor_presets", "council_presets",
+}
+
+
+@app.post("/api/import")
+async def import_data(request: Request, body: ImportRequest):
+    """Import conversations and settings from a backup (admin-gated)."""
+    _require_admin(request)
+    result = storage.import_conversations(body.conversations or [])
+    if body.settings:
+        filtered = {k: v for k, v in body.settings.items() if k in _SAFE_IMPORT_SETTINGS_KEYS}
+        update_settings(**filtered)
+    return {"imported_count": result, "status": "ok"}
 
 
 @app.post("/api/settings/reset", dependencies=[Depends(_require_admin)])

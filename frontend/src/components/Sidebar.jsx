@@ -17,6 +17,7 @@ export default function Sidebar({
   onNewAdvisors,
   onDeleteConversation,
   onOpenSettings,
+  onExportImport,
   isLoading,
   onAbort,
   isOpen,
@@ -81,6 +82,13 @@ export default function Sidebar({
           title="Settings"
         >
           ⚙️
+        </button>
+        <button
+          className="icon-button"
+          onClick={onExportImport}
+          title="Export / Import"
+        >
+          💾
         </button>
       </div>
 

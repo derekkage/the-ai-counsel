@@ -270,25 +270,29 @@ def _build_index_entry(
     return entry
 
 
-def rebuild_index() -> List[Dict[str, Any]]:
-    """
-    Rebuild the conversation index from actual conversation files.
-    Use this fallback if index is missing or corrupted.
-    """
+def _iter_conversation_records():
+    """Yield parsed conversation dicts from all conversation files."""
     ensure_data_dir()
-    index = []
-    
     for filename in os.listdir(DATA_DIR):
         if filename.endswith('.json') and filename != INDEX_FILE_NAME:
             path = os.path.join(DATA_DIR, filename)
             try:
                 with open(path, 'r') as f:
                     data = json.load(f)
-                    if not _is_conversation_record(data):
-                        continue
-                    index.append(_build_index_entry(data))
+                    if _is_conversation_record(data):
+                        yield data
             except (json.JSONDecodeError, OSError):
                 continue
+
+
+def rebuild_index() -> List[Dict[str, Any]]:
+    """
+    Rebuild the conversation index from actual conversation files.
+    Use this fallback if index is missing or corrupted.
+    """
+    index = []
+    for data in _iter_conversation_records():
+        index.append(_build_index_entry(data))
 
     # Sort by creation time, newest first
     index.sort(key=lambda x: x["created_at"], reverse=True)
@@ -423,13 +427,14 @@ def list_conversations() -> List[Dict[str, Any]]:
     return index
 
 
-def add_user_message(conversation_id: str, content: str, conversation: Optional[Dict[str, Any]] = None):
+def add_user_message(conversation_id: str, content: str, conversation: Optional[Dict[str, Any]] = None, attachments: Optional[List[Dict[str, Any]]] = None):
     """Add a user message to a conversation.
 
     Args:
         conversation_id: Conversation identifier
         content: User message content
         conversation: Pre-loaded conversation dict (avoids redundant disk read)
+        attachments: Optional list of file attachment dicts (name, type, content, mime_type, size)
     """
     if conversation is None:
         conversation = get_conversation(conversation_id)
@@ -440,10 +445,14 @@ def add_user_message(conversation_id: str, content: str, conversation: Optional[
     if len(conversation["messages"]) == 0:
         conversation["created_at"] = datetime.now(timezone.utc).isoformat()
 
-    conversation["messages"].append({
+    msg: Dict[str, Any] = {
         "role": "user",
         "content": content
-    })
+    }
+    if attachments:
+        msg["attachments"] = attachments
+
+    conversation["messages"].append(msg)
 
     save_conversation(conversation)
 
@@ -570,6 +579,36 @@ def update_conversation_title(conversation_id: str, title: str):
 
     conversation["title"] = title
     save_conversation(conversation)
+
+
+def export_all_conversations() -> List[Dict[str, Any]]:
+    """Read all conversation files and return full data for export."""
+    return list(_iter_conversation_records())
+
+
+def _sanitize_conversation_id(conv_id: str) -> str:
+    """Strip path separators from a conversation ID to prevent path traversal."""
+    sanitized = conv_id.replace('\\', '_').replace('/', '_')
+    return sanitized or "_"
+
+
+def import_conversations(convs: List[Dict[str, Any]]) -> int:
+    """Import conversation files, skipping duplicates by ID. Returns count of newly imported."""
+    ensure_data_dir()
+    imported = 0
+    for conv in convs:
+        if not _is_conversation_record(conv):
+            continue
+        conv_id = _sanitize_conversation_id(conv["id"])
+        conv["id"] = conv_id
+        path = get_conversation_path(conv_id)
+        if os.path.exists(path):
+            continue
+        with open(path, 'w') as f:
+            json.dump(conv, f, indent=2)
+        _update_index_entry(conv)
+        imported += 1
+    return imported
 
 
 def delete_conversation(conversation_id: str) -> bool:

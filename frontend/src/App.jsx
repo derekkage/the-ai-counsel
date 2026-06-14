@@ -8,6 +8,7 @@ import './ModeToggle.css';
 const ChatInterface = lazy(() => import('./components/ChatInterface'));
 const Settings = lazy(() => import('./components/Settings'));
 const LandingPage = lazy(() => import('./components/LandingPage'));
+const ExportImportModal = lazy(() => import('./components/ExportImportModal'));
 
 /** Stop any stage timers still missing an end timestamp. */
 function finalizeTimers(timers = {}) {
@@ -127,6 +128,7 @@ function App() {
   const [currentConversation, setCurrentConversation] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [settingsInitialSection, setSettingsInitialSection] = useState('llm_keys');
   const [ollamaStatus, setOllamaStatus] = useState({
     connected: false,
@@ -872,7 +874,7 @@ function App() {
     }
   };
 
-  const handleSendMessage = async (content, searchProvider) => {
+  const handleSendMessage = async (content, searchProvider, attachments) => {
     if (!currentConversationId) return;
 
     let effectiveMode = executionMode;
@@ -982,6 +984,7 @@ function App() {
         executionMode: effectiveMode,
         councilModels,
         chairmanModel: effectiveMode === 'full' ? chairmanModel : undefined,
+        fileAttachments: attachments || null,
       };
       if (isDebate) {
         streamOptions.debateRounds = debateRounds;
@@ -1622,6 +1625,7 @@ function App() {
         onNewAdvisors={handleMobileNewAdvisors}
         onDeleteConversation={handleDeleteConversation}
         onOpenSettings={handleMobileOpenSettings}
+        onExportImport={() => setShowExportModal(true)}
         isLoading={isLoading}
         onAbort={handleAbort}
         isOpen={sidebarOpen}
@@ -1678,6 +1682,14 @@ function App() {
               onRefreshOllama={testOllamaConnection}
               initialSection={settingsInitialSection}
             />
+          </Suspense>
+        </AppErrorBoundary>
+      )}
+
+      {showExportModal && (
+        <AppErrorBoundary>
+          <Suspense fallback={<AppLoadingFallback />}>
+            <ExportImportModal onClose={() => setShowExportModal(false)} />
           </Suspense>
         </AppErrorBoundary>
       )}

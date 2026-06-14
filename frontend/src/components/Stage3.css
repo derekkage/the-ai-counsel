@@ -171,6 +171,34 @@
   font-family: var(--font-content);
 }
 
+.print-report-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+.print-report-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #f1f5f9;
+}
+
+.print-report-button .icon {
+  font-size: 14px;
+}
+
 /* ==================== MOBILE RESPONSIVE ==================== */
 @media (max-width: 768px) {
   .final-response {

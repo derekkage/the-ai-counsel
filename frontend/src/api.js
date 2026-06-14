@@ -462,6 +462,7 @@ export const api = {
       executionMode = 'full',
       councilModels = null,
       chairmanModel = null,
+      fileAttachments = null,
     } = options;
     const body = {
       content,
@@ -473,6 +474,9 @@ export const api = {
     }
     if (chairmanModel) {
       body.chairman_model = chairmanModel;
+    }
+    if (fileAttachments && fileAttachments.length > 0) {
+      body.file_attachments = fileAttachments;
     }
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/stream?_t=${Date.now()}`,
@@ -498,6 +502,32 @@ export const api = {
   /**
    * Send a message and stream the multi-round iterative debate process.
    */
+  /**
+   * Export all conversations and settings.
+   */
+  async exportData() {
+    const response = await fetch(`${API_BASE}/api/export`);
+    if (!response.ok) {
+      throw new Error('Failed to export data');
+    }
+    return response.json();
+  },
+
+  /**
+   * Import conversations and settings from a backup.
+   */
+  async importData(data) {
+    const response = await fetch(`${API_BASE}/api/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to import data');
+    }
+    return response.json();
+  },
+
   async streamDebateMessage(conversationId, options, onEvent, signal) {
     const {
       content,
@@ -506,6 +536,7 @@ export const api = {
       councilModels = null,
       chairmanModel = null,
       debateRounds = null,
+      fileAttachments = null,
     } = options;
     const body = {
       content,
@@ -518,6 +549,9 @@ export const api = {
     }
     if (chairmanModel) {
       body.chairman_model = chairmanModel;
+    }
+    if (fileAttachments && fileAttachments.length > 0) {
+      body.file_attachments = fileAttachments;
     }
     const response = await fetch(
       `${API_BASE}/api/conversations/${conversationId}/message/debate?_t=${Date.now()}`,

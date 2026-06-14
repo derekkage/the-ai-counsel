@@ -4,6 +4,7 @@ import { getModelVisuals, getShortModelName } from '../utils/modelHelpers';
 import ThinkBlockRenderer from './ThinkBlockRenderer';
 import StageTimer from './StageTimer';
 import { copyToClipboard } from '../utils/clipboard';
+import { printReport } from '../utils/printReport';
 import './Stage3.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -18,7 +19,7 @@ function deAnonymizeText(text, labelToModel) {
     return result;
 }
 
-export default function Stage3({ finalResponse, labelToModel, startTime, endTime }) {
+export default function Stage3({ finalResponse, labelToModel, startTime, endTime, conversationTitle }) {
     const [isCopied, setIsCopied] = useState(false);
 
     if (!finalResponse) {
@@ -28,11 +29,21 @@ export default function Stage3({ finalResponse, labelToModel, startTime, endTime
     const visuals = getModelVisuals(finalResponse?.model);
     const shortName = getShortModelName(finalResponse?.model);
 
-    const handleCopy = async () => {
-        const textToCopy = typeof finalResponse?.response === 'string'
-            ? finalResponse.response
-            : String(finalResponse?.response || '');
+    const displayContent = typeof finalResponse?.response === 'string'
+        ? finalResponse.response
+        : String(finalResponse?.response || 'No response');
 
+    const deAnonymizedContent = labelToModel
+        ? deAnonymizeText(displayContent, labelToModel)
+        : displayContent;
+
+    const handlePrint = () => {
+        if (!deAnonymizedContent) return;
+        printReport(deAnonymizedContent, shortName, conversationTitle);
+    };
+
+    const handleCopy = async () => {
+        const textToCopy = deAnonymizedContent;
         if (!textToCopy) return;
 
         const copied = await copyToClipboard(textToCopy);
@@ -41,15 +52,6 @@ export default function Stage3({ finalResponse, labelToModel, startTime, endTime
             setTimeout(() => setIsCopied(false), 2000);
         }
     };
-
-    const displayContent = typeof finalResponse?.response === 'string'
-        ? finalResponse.response
-        : String(finalResponse?.response || 'No response');
-
-    // De-anonymize names for user viewing
-    const deAnonymizedContent = labelToModel
-        ? deAnonymizeText(displayContent, labelToModel)
-        : displayContent;
 
     return (
         <div className="stage-container stage-3">
@@ -91,6 +93,14 @@ export default function Stage3({ finalResponse, labelToModel, startTime, endTime
                                 <span className="label">Copy</span>
                             </>
                         )}
+                    </button>
+                    <button
+                        className="print-report-button"
+                        onClick={handlePrint}
+                        title="Print Report"
+                    >
+                        <span className="icon">🖨️</span>
+                        <span className="label">Print Report</span>
                     </button>
                 </div>
                 <div className="final-text markdown-content">

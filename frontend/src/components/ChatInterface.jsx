@@ -13,6 +13,7 @@ import MarkdownContent from './MarkdownContent';
 import Stage4, { Stage4Skeleton } from './Stage4';
 import RoundNavigator from './RoundNavigator';
 import CostReport from './CostReport';
+import { processFiles } from '../utils/fileProcessor';
 import './ChatInterface.css';
 
 function hasStage1Results(msg) {
@@ -126,6 +127,11 @@ export default function ChatInterface({
     const [input, setInput] = useState('');
     const [activeSearchProvider, setActiveSearchProvider] = useState(null);
     const [searchPopoverOpen, setSearchPopoverOpen] = useState(false);
+    const [attachments, setAttachments] = useState([]);
+    const [processingFiles, setProcessingFiles] = useState(false);
+    const [fileErrors, setFileErrors] = useState([]);
+    const [dragOver, setDragOver] = useState(false);
+    const fileInputRef = useRef(null);
     const searchPopoverRef = useRef(null);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
@@ -172,11 +178,54 @@ export default function ChatInterface({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [searchPopoverOpen]);
 
+    const processAttachedFiles = async (fileList) => {
+        if (!fileList || fileList.length === 0) return;
+        setProcessingFiles(true);
+        setFileErrors([]);
+        const { results, errors } = await processFiles(fileList);
+        if (errors.length > 0) {
+            setFileErrors(errors);
+        }
+        setAttachments(prev => [...prev, ...results]);
+        setProcessingFiles(false);
+    };
+
+    const handleFileSelect = async (e) => {
+        await processAttachedFiles(e.target.files);
+        e.target.value = '';
+    };
+
+    const handleRemoveAttachment = (index) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+            setDragOver(false);
+        }
+    };
+
+    const handleDrop = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+        await processAttachedFiles(e.dataTransfer.files);
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (input.trim() && !isLoading) {
-            onSendMessage(input, activeSearchProvider);
+        if ((input.trim() || attachments.length > 0) && !isLoading) {
+            onSendMessage(input, activeSearchProvider, attachments);
             setInput('');
+            setAttachments([]);
         }
     };
 
@@ -232,7 +281,13 @@ export default function ChatInterface({
     return (
         <div className="chat-interface">
             {/* Messages Area */}
-            <div className="messages-area" ref={messagesContainerRef}>
+            <div
+                className={`messages-area ${dragOver ? 'drag-over' : ''}`}
+                ref={messagesContainerRef}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
                 {mode === 'advisors' && conversation.messages.length === 0 ? (
                     <div className="advisor-setup-scroll">
                         <AdvisorSetup
@@ -299,7 +354,19 @@ export default function ChatInterface({
 
                             <div className="message-content">
                                 {msg.role === 'user' ? (
-                                    <MarkdownContent>{msg.content}</MarkdownContent>
+                                    <>
+                                        {msg.attachments && msg.attachments.length > 0 && (
+                                            <div className="user-attachments">
+                                                {msg.attachments.map((att, idx) => (
+                                                    <div key={idx} className="ua-chip">
+                                                        <span className="ua-icon">📄</span>
+                                                        <span className="ua-name">{att.name}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <MarkdownContent>{msg.content}</MarkdownContent>
+                                    </>
                                 ) : (msg.mode === 'advisors' || msg.type === 'advisor_debate') ? (
                                     <DebateView
                                         personas={msg.personas || []}
@@ -328,6 +395,7 @@ export default function ChatInterface({
                                         isLoading={isLoading}
                                         stage2AnchorRef={stage2AnchorRef}
                                         stage3AnchorRef={stage3AnchorRef}
+                                        conversation={conversation}
                                     />
                                 )}
                             </div>
@@ -358,6 +426,48 @@ export default function ChatInterface({
                     </div>
                 ) : (
                     <form className="input-container" onSubmit={handleSubmit}>
+                        {attachments.length > 0 && (
+                            <div className="attachment-preview">
+                                {attachments.map((att, idx) => (
+                                    <div key={idx} className="ap-chip">
+                                        <span className="ap-chip-name">{att.name}</span>
+                                        <button
+                                            type="button"
+                                            className="ap-del"
+                                            onClick={() => handleRemoveAttachment(idx)}
+                                            disabled={isLoading}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {fileErrors.length > 0 && (
+                            <div className="attachment-preview">
+                                {fileErrors.map((err, idx) => (
+                                    <div key={idx} className="ap-chip ap-chip--error">
+                                        <span className="ap-chip-name">{err.name}</span>
+                                        <span className="ap-chip-error-msg">{err.error}</span>
+                                        <button
+                                            type="button"
+                                            className="ap-del"
+                                            onClick={() => setFileErrors(prev => prev.filter((_, i) => i !== idx))}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {processingFiles && (
+                            <div className="attachment-preview">
+                                <div className="ap-chip ap-chip--processing">
+                                    <span className="spinner-small" />
+                                    <span>Processing files...</span>
+                                </div>
+                            </div>
+                        )}
                         <div className="input-row-top">
                             <div className="search-provider-picker" ref={searchPopoverRef}>
                                 <button
@@ -401,6 +511,24 @@ export default function ChatInterface({
                                 )}
                             </div>
 
+                            <button
+                                type="button"
+                                className="attach-btn"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isLoading}
+                                title="Attach file (PDF, TXT, MD)"
+                            >
+                                📎
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf,.txt,.md,.markdown"
+                                multiple
+                                style={{ display: 'none' }}
+                                onChange={handleFileSelect}
+                            />
+
                             <textarea
                                 className="message-input"
                                 placeholder={isLoading ? "Consulting..." : "Ask the Council..."}
@@ -417,7 +545,7 @@ export default function ChatInterface({
                                     ⏹
                                 </button>
                             ) : (
-                                <button type="submit" className="send-button" disabled={!input.trim()}>
+                                <button type="submit" className="send-button" disabled={!input.trim() && attachments.length === 0}>
                                     ➤
                                 </button>
                             )}
@@ -450,6 +578,7 @@ function CouncilMessageRenderer({
     isLoading,
     stage2AnchorRef,
     stage3AnchorRef,
+    conversation,
 }) {
     const [selectedRound, setSelectedRound] = useState(null);
 
@@ -606,6 +735,7 @@ function CouncilMessageRenderer({
                         labelToModel={displayMetadata.label_to_model}
                         startTime={msg.timers?.stage3Start}
                         endTime={msg.timers?.stage3End}
+                        conversationTitle={conversation?.title}
                     />
                 )}
             </div>
