@@ -224,6 +224,17 @@ class SetupWizard:
                 elif msg[0] == "ask_manual_install":
                     self._ask_manual_install(msg[1], msg[2])
                     return
+                elif msg[0] == "filedialog":
+                    default = msg[1]
+                    event = msg[2]
+                    result_container = msg[3]
+                    chosen = filedialog.askdirectory(
+                        parent=self.window,
+                        title="Choose Install Location",
+                        initialdir=os.path.dirname(default),
+                    )
+                    result_container[0] = chosen
+                    event.set()
         except queue.Empty:
             pass
         if not self.stop_flag:
@@ -349,22 +360,13 @@ class SetupWizard:
             os.path.expanduser("~"), "Documents", "The-AI-Counsel"
         )
 
-        result = [None]
         event = threading.Event()
+        result_container = [None]
 
-        def choose():
-            chosen = filedialog.askdirectory(
-                parent=self.window,
-                title="Choose Install Location",
-                initialdir=os.path.dirname(default_dir),
-            )
-            result[0] = chosen
-            event.set()
-
-        self.window.after(0, choose)
+        self.status_queue.put(("filedialog", default_dir, event, result_container))
         event.wait()
 
-        path = result[0]
+        path = result_container[0]
         if not path:
             return False
 

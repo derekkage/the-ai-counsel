@@ -602,15 +602,19 @@ class LauncherApp:
                 behind = int(result.stdout.strip() or 0)
 
                 if behind > 0:
-                    self._update_label.config(fg="#dc2626")
-                    self._set_dot(self._update_dot, "#dc2626")
-                    self._update_status.set(f"{behind} update(s) available")
-                    self._update_btn.config(state=tk.NORMAL)
+                    self.root.after(0, lambda: (
+                        self._update_label.config(fg="#dc2626"),
+                        self._set_dot(self._update_dot, "#dc2626"),
+                        self._update_status.set(f"{behind} update(s) available"),
+                        self._update_btn.config(state=tk.NORMAL),
+                    ))
                 else:
-                    self._set_dot(self._update_dot, "#16a34a")
-                    self._update_status.set("Up to date")
+                    self.root.after(0, lambda: (
+                        self._set_dot(self._update_dot, "#16a34a"),
+                        self._update_status.set("Up to date"),
+                    ))
             except Exception:
-                self._update_status.set("Could not check")
+                self.root.after(0, lambda: self._update_status.set("Could not check"))
 
         threading.Thread(target=check, daemon=True).start()
 
@@ -626,8 +630,10 @@ class LauncherApp:
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-                self._update_status.set("Updating...")
-                self._update_btn.config(state=tk.DISABLED)
+                self.root.after(0, lambda: (
+                    self._update_status.set("Updating..."),
+                    self._update_btn.config(state=tk.DISABLED),
+                ))
 
                 result = subprocess.run(
                     ["git", "pull", "origin", "main"],
@@ -638,13 +644,17 @@ class LauncherApp:
                     startupinfo=startupinfo,
                 )
                 if result.returncode == 0:
-                    self._set_dot(self._update_dot, "#16a34a")
-                    self._update_status.set("Updated! Restart servers to apply.")
+                    self.root.after(0, lambda: (
+                        self._set_dot(self._update_dot, "#16a34a"),
+                        self._update_status.set("Updated! Restart servers to apply."),
+                    ))
                 else:
-                    self._update_status.set("Update failed. Try manually.")
-                    self._update_btn.config(state=tk.NORMAL)
+                    self.root.after(0, lambda: (
+                        self._update_status.set("Update failed. Try manually."),
+                        self._update_btn.config(state=tk.NORMAL),
+                    ))
             except Exception:
-                self._update_status.set("Update failed. Check your connection.")
+                self.root.after(0, lambda: self._update_status.set("Update failed. Check your connection."))
 
         threading.Thread(target=pull, daemon=True).start()
 
