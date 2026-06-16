@@ -77,8 +77,9 @@ class ServerRunner:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
         self.frontend_process = subprocess.Popen(
-            ["npm", "run", "dev"],
+            [npm_cmd, "run", "dev"],
             cwd=os.path.join(self.repo_path, "frontend"),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
