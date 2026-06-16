@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Skeleton from './common/Skeleton';
 import { getModelVisuals, getShortModelName } from '../utils/modelHelpers';
 import ThinkBlockRenderer from './ThinkBlockRenderer';
 import StageTimer from './StageTimer';
 import { copyToClipboard } from '../utils/clipboard';
-import { printReport } from '../utils/printReport';
+import { saveReport } from '../utils/saveReport';
 import './Stage3.css';
 
 function deAnonymizeText(text, labelToModel) {
@@ -21,6 +21,19 @@ function deAnonymizeText(text, labelToModel) {
 
 export default function Stage3({ finalResponse, labelToModel, startTime, endTime, conversationTitle }) {
     const [isCopied, setIsCopied] = useState(false);
+    const [formatMenuOpen, setFormatMenuOpen] = useState(false);
+    const saveWrapperRef = useRef(null);
+
+    useEffect(() => {
+        if (!formatMenuOpen) return;
+        const handleClickOutside = (e) => {
+            if (saveWrapperRef.current && !saveWrapperRef.current.contains(e.target)) {
+                setFormatMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [formatMenuOpen]);
 
     if (!finalResponse) {
         return null;
@@ -37,9 +50,10 @@ export default function Stage3({ finalResponse, labelToModel, startTime, endTime
         ? deAnonymizeText(displayContent, labelToModel)
         : displayContent;
 
-    const handlePrint = () => {
+    const handleSave = (format) => {
         if (!deAnonymizedContent) return;
-        printReport(deAnonymizedContent, shortName, conversationTitle);
+        saveReport(format, deAnonymizedContent, conversationTitle, shortName);
+        setFormatMenuOpen(false);
     };
 
     const handleCopy = async () => {
@@ -94,14 +108,36 @@ export default function Stage3({ finalResponse, labelToModel, startTime, endTime
                             </>
                         )}
                     </button>
-                    <button
-                        className="print-report-button"
-                        onClick={handlePrint}
-                        title="Print Report"
-                    >
-                        <span className="icon">🖨️</span>
-                        <span className="label">Print Report</span>
-                    </button>
+                    <div className="save-report-wrapper" ref={saveWrapperRef}>
+                        <button
+                            className={`save-report-button ${formatMenuOpen ? 'active' : ''}`}
+                            onClick={() => setFormatMenuOpen(o => !o)}
+                            title="Save Report"
+                        >
+                            <span className="icon">💾</span>
+                            <span className="label">Save Report</span>
+                        </button>
+                        {formatMenuOpen && (
+                            <div className="save-report-dropdown">
+                                <button onClick={() => handleSave('txt')}>
+                                    <span className="icon">📄</span>
+                                    <span className="label">TXT</span>
+                                </button>
+                                <button onClick={() => handleSave('md')}>
+                                    <span className="icon">📝</span>
+                                    <span className="label">Markdown</span>
+                                </button>
+                                <button onClick={() => handleSave('json')}>
+                                    <span className="icon">{'{ }'}</span>
+                                    <span className="label">JSON</span>
+                                </button>
+                                <button onClick={() => handleSave('pdf')}>
+                                    <span className="icon">📑</span>
+                                    <span className="label">PDF</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="final-text markdown-content">
                     <ThinkBlockRenderer
