@@ -506,26 +506,39 @@ export const api = {
    * Export all conversations and settings.
    */
   async exportData() {
-    const response = await fetch(`${API_BASE}/api/export`);
-    if (!response.ok) {
-      throw new Error('Failed to export data');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(`${API_BASE}/api/export`, { signal: controller.signal });
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+      return response.json();
+    } finally {
+      clearTimeout(timer);
     }
-    return response.json();
   },
 
   /**
    * Import conversations and settings from a backup.
    */
   async importData(data) {
-    const response = await fetch(`${API_BASE}/api/import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to import data');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(`${API_BASE}/api/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        throw new Error('Failed to import data');
+      }
+      return response.json();
+    } finally {
+      clearTimeout(timer);
     }
-    return response.json();
   },
 
   async streamDebateMessage(conversationId, options, onEvent, signal) {

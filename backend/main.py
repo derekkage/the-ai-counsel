@@ -1664,7 +1664,8 @@ _SAFE_IMPORT_SETTINGS_KEYS = {
 async def import_data(request: Request, body: ImportRequest):
     """Import conversations and settings from a backup (admin-gated)."""
     _require_admin(request)
-    result = storage.import_conversations(body.conversations or [])
+    from starlette.concurrency import run_in_threadpool
+    result = await run_in_threadpool(storage.import_conversations, body.conversations or [])
     if body.settings:
         filtered = {k: v for k, v in body.settings.items() if k in _SAFE_IMPORT_SETTINGS_KEYS}
         update_settings(**filtered)
