@@ -500,8 +500,9 @@ class SetupWizard:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+        npm_exe = "npm.cmd" if sys.platform == "win32" else "npm"
         proc = subprocess.Popen(
-            ["npm", "install", "--prefix", "frontend"],
+            [npm_exe, "install", "--prefix", "frontend"],
             cwd=self.repo_path,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
