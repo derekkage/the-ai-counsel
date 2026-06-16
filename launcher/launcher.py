@@ -7,108 +7,47 @@ import threading
 import webbrowser
 import time
 import subprocess
+import traceback
 
 from server_runner import ServerRunner
 from setup_wizard import SetupWizard
 
-
-def _ensure_deps():
-    need = []
-    try:
-        import pystray
-    except ImportError:
-        need.append("pystray")
-    try:
-        from PIL import Image, ImageDraw
-    except ImportError:
-        need.append("Pillow")
-
-    if not need:
-        return True
-
-    root = tk.Tk()
-    root.withdraw()
-
-    msg = (
-        "The AI Counsel Launcher needs two helper libraries to show a system tray icon:\n\n"
-        "  \u2022 pystray\n"
-        "  \u2022 Pillow\n\n"
-        "Install them automatically now?\n\n"
-        "(One-time step, about 30 seconds. No terminal needed.)"
-    )
-    if not messagebox.askyesno("Install Required Packages", msg):
-        root.destroy()
-        return False
-
-    status = tk.Toplevel(root)
-    status.title("Installing...")
-    status.geometry("360x80")
-    status.resizable(False, False)
-    status.transient(root)
-    status.grab_set()
-    lbl = tk.Label(status, text="Installing packages\u2026", font=("Segoe UI", 11), pady=20)
-    lbl.pack()
-    status.update()
-
-    all_ok = True
-    for pkg in need:
-        try:
-            lbl.config(text=f"Installing {pkg}\u2026")
-            status.update()
-            proc = subprocess.run(
-                [sys.executable, "-m", "pip", "install", pkg, "--user"],
-                capture_output=True, text=True, timeout=120,
-            )
-            if proc.returncode != 0:
-                all_ok = False
-                break
-        except Exception:
-            all_ok = False
-            break
-
-    status.destroy()
-
-    if all_ok:
-        try:
-            import pystray
-        except ImportError:
-            all_ok = False
-        try:
-            from PIL import Image, ImageDraw
-        except ImportError:
-            all_ok = False
-
-    if not all_ok:
-        messagebox.showerror(
-            "Installation Failed",
-            "Could not install required libraries.\n\n"
-            "Please run this command in a terminal:\n"
-            f'  {sys.executable} -m pip install pystray Pillow --user\n\n'
-            "Then double-click run.bat again.",
-        )
-        root.destroy()
-        return False
-
-    messagebox.showinfo(
-        "Ready",
-        "Libraries installed successfully!\n\nThe launcher will now start.",
-    )
-    root.destroy()
-    return True
-
-
-_DEPS_OK = _ensure_deps()
-
-if _DEPS_OK:
-    import pystray
-    from PIL import Image, ImageDraw, ImageFont
-    HAS_TRAY = True
-else:
-    HAS_TRAY = False
+HAS_TRAY = False
+_pystray = None
+_PIL_Image = None
+_PIL_ImageDraw = None
+_PIL_ImageFont = None
 
 APP_NAME = "The AI Counsel Launcher"
 REPO_URL = "https://github.com/derekkage/the-ai-counsel"
 FRONTEND_URL = "http://127.0.0.1:5173"
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_LOG_PATH = os.path.join(_SCRIPT_DIR, "launcher-crash.log")
+_BOOT_PATH = os.path.join(_SCRIPT_DIR, "launcher-boot.log")
+
+
+def _boot_log(msg):
+    try:
+        with open(_BOOT_PATH, "a") as f:
+            f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+    except Exception:
+        pass
+
+
+_boot_log("started")
+_boot_log(f"python={sys.executable}")
+_boot_log(f"cwd={os.getcwd()}")
+
+
+def _crash_log(msg):
+    try:
+        with open(_LOG_PATH, "w") as f:
+            f.write("The AI Counsel Launcher - Crash Report\n")
+            f.write("=" * 50 + "\n\n")
+            f.write(msg)
+    except Exception:
+        pass
 
 
 def _get_config_dir():
@@ -135,24 +74,6 @@ def _save_config(config):
         json.dump(config, f, indent=2)
 
 
-def _create_tray_image():
-    size = 64
-    image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(image)
-    draw.ellipse([2, 2, size - 2, size - 2], fill=(37, 99, 235, 255))
-    try:
-        font = ImageFont.truetype("segoeui.ttf", 32)
-    except (IOError, OSError):
-        font = ImageFont.load_default()
-    bbox = draw.textbbox((0, 0), "A", font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    x = (size - tw) / 2
-    y = (size - th) / 2 - 1
-    draw.text((x, y), "A", fill=(255, 255, 255), font=font)
-    return image
-
-
 class LauncherApp:
     def __init__(self):
         self.config = _load_config()
@@ -161,10 +82,132 @@ class LauncherApp:
         self.tray_icon = None
         self.servers_running = False
         self.starting_up = False
+        self.has_tray = False
+        self._pystray = None
+        self._PIL_Image = None
+        self._PIL_ImageDraw = None
+        self._PIL_ImageFont = None
 
         self._backend_status = tk.StringVar(value="Not started")
         self._frontend_status = tk.StringVar(value="Not started")
         self._update_status = tk.StringVar(value="Checking...")
+        self._error_log_path = None
+
+    def _ensure_deps(self):
+        need = []
+        try:
+            import pystray
+            self._pystray = pystray
+            need.append(None)
+        except ImportError:
+            need.append("pystray")
+        try:
+            from PIL import Image, ImageDraw
+            self._PIL_Image = Image
+            self._PIL_ImageDraw = ImageDraw
+            need.append(None)
+        except ImportError:
+            need.append("Pillow")
+        need = [p for p in need if p is not None]
+
+        if not need:
+            self.has_tray = True
+            try:
+                from PIL import ImageFont
+                self._PIL_ImageFont = ImageFont
+            except ImportError:
+                pass
+            return True
+
+        msg = (
+            "The AI Counsel Launcher needs two helper libraries to show a system tray icon:\n\n"
+            "  \u2022 pystray\n"
+            "  \u2022 Pillow\n\n"
+            "Install them automatically now?\n\n"
+            "(One-time step, about 30 seconds. No terminal needed.)"
+        )
+        if not messagebox.askyesno("Install Required Packages", msg):
+            return False
+
+        status = tk.Toplevel(self.root)
+        status.title("Installing...")
+        status.geometry("360x80")
+        status.resizable(False, False)
+        status.transient(self.root)
+        status.grab_set()
+        lbl = tk.Label(status, text="Installing packages\u2026", font=("Segoe UI", 11), pady=20)
+        lbl.pack()
+        status.update()
+
+        all_ok = True
+        pip_errors = []
+        for pkg in need:
+            lbl.config(text=f"Installing {pkg}\u2026")
+            status.update()
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", pkg, "--user"],
+                    capture_output=True, text=True, timeout=120,
+                )
+                if proc.returncode != 0:
+                    all_ok = False
+                    pip_errors.append(f"[{pkg}] exit code {proc.returncode}")
+                    pip_errors.append(f"  stdout: {proc.stdout[:200]}")
+                    pip_errors.append(f"  stderr: {proc.stderr[:200]}")
+                    break
+            except subprocess.TimeoutExpired:
+                all_ok = False
+                pip_errors.append(f"[{pkg}] timed out after 120 seconds")
+                pip_errors.append("  Your internet may be slow or blocked.")
+                break
+            except FileNotFoundError:
+                all_ok = False
+                pip_errors.append(f"[{pkg}] could not run pip (not found)")
+                pip_errors.append(f"  tried: {sys.executable} -m pip install {pkg}")
+                break
+            except Exception as e:
+                all_ok = False
+                pip_errors.append(f"[{pkg}] exception: {e}")
+                break
+
+        status.destroy()
+
+        if all_ok:
+            try:
+                import pystray
+                self._pystray = pystray
+                from PIL import Image, ImageDraw
+                self._PIL_Image = Image
+                self._PIL_ImageDraw = ImageDraw
+                self.has_tray = True
+                try:
+                    from PIL import ImageFont
+                    self._PIL_ImageFont = ImageFont
+                except ImportError:
+                    pass
+                messagebox.showinfo(
+                    "Ready",
+                    "Libraries installed successfully!\n\nThe launcher will now start.",
+                )
+                return True
+            except ImportError:
+                all_ok = False
+                pip_errors.append("pip succeeded but import still failed")
+
+        if pip_errors:
+            _crash_log("pip install failed:\n" + "\n".join(pip_errors))
+            _boot_log("pip install failed, see launcher-crash.log")
+
+        messagebox.showerror(
+            "Installation Failed",
+            "Could not install the required libraries.\n\n"
+            "Details have been saved to:\n"
+            f"{_LOG_PATH}\n\n"
+            "You can also try installing manually by running this\n"
+            "command in a terminal, then double-click run.bat again:\n\n"
+            f'  {sys.executable} -m pip install pystray Pillow --user',
+        )
+        return False
 
     def run(self):
         self.root = tk.Tk()
@@ -179,6 +222,10 @@ class LauncherApp:
                 pass
 
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+        if not self._ensure_deps():
+            self.root.destroy()
+            return
 
         if not self.config or not self.config.get("first_run_complete"):
             self._run_setup_wizard()
@@ -337,7 +384,7 @@ class LauncherApp:
         self._stop_btn.config(state=tk.NORMAL)
         self._open_btn.config(state=tk.NORMAL)
         self._open_browser()
-        if HAS_TRAY:
+        if self.has_tray:
             self.root.after(1500, self._minimize_to_tray)
 
     def _on_server_error(self, message):
@@ -402,7 +449,7 @@ class LauncherApp:
         webbrowser.open(FRONTEND_URL)
 
     def _minimize_to_tray(self):
-        if not HAS_TRAY:
+        if not self.has_tray:
             return
         self.root.withdraw()
         if self.tray_icon is None:
@@ -422,9 +469,10 @@ class LauncherApp:
             pass
 
     def _show_tray_icon(self):
-        if not HAS_TRAY:
+        if not self.has_tray or not self._pystray:
             return
 
+        pystray = self._pystray
         menu = pystray.Menu(
             pystray.MenuItem(
                 "Open The AI Counsel",
@@ -464,18 +512,38 @@ class LauncherApp:
             pystray.MenuItem("Exit", self._exit_app),
         )
 
-        self.tray_icon = pystray.Icon(
-            "the-ai-counsel",
-            _create_tray_image(),
-            APP_NAME,
-            menu,
-        )
+        img = self._make_tray_image()
+        self.tray_icon = pystray.Icon("the-ai-counsel", img, APP_NAME, menu)
 
         def run_tray():
             self.tray_icon.run()
             self.tray_icon = None
 
         threading.Thread(target=run_tray, daemon=True).start()
+
+    def _make_tray_image(self):
+        if not self._PIL_Image or not self._PIL_ImageDraw:
+            return None
+        Image = self._PIL_Image
+        ImageDraw = self._PIL_ImageDraw
+        size = 64
+        image = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        draw.ellipse([2, 2, size - 2, size - 2], fill=(37, 99, 235, 255))
+        font = None
+        if self._PIL_ImageFont:
+            try:
+                font = self._PIL_ImageFont.truetype("segoeui.ttf", 32)
+            except (IOError, OSError):
+                font = self._PIL_ImageFont.load_default()
+        if font:
+            bbox = draw.textbbox((0, 0), "A", font=font)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+            x = (size - tw) / 2
+            y = (size - th) / 2 - 1
+            draw.text((x, y), "A", fill=(255, 255, 255), font=font)
+        return image
 
     def _exit_app(self):
         self._stop_servers()
@@ -492,7 +560,7 @@ class LauncherApp:
             os._exit(0)
 
     def _on_close(self):
-        if self.servers_running and HAS_TRAY:
+        if self.servers_running and self.has_tray:
             self._minimize_to_tray()
         else:
             self._stop_servers()
@@ -581,19 +649,20 @@ if __name__ == "__main__":
     try:
         app = LauncherApp()
         app.run()
-    except Exception as e:
-        import traceback
+    except Exception:
         error_msg = traceback.format_exc()
-        tk.messagebox.showerror(
-            "Launcher Error",
-            f"Something went wrong starting the launcher:\n\n{e}\n\n"
-            f"Make sure you have installed the dependencies:\n"
-            f"  pip install pystray Pillow\n\n"
-            f"Error details have been written to launcher-crash.log",
-        )
+        _boot_log(f"unhandled exception in __main__:\n{error_msg}")
+        _crash_log(error_msg)
         try:
-            with open(os.path.join(os.path.dirname(__file__), "launcher-crash.log"), "w") as f:
-                f.write(error_msg)
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror(
+                "Launcher Error",
+                "Something went wrong starting the launcher.\n\n"
+                f"Details have been saved to:\n{_LOG_PATH}\n\n"
+                "Open that file and share its contents if you need help.",
+            )
+            root.destroy()
         except Exception:
             pass
         sys.exit(1)
