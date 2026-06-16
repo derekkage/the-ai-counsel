@@ -36,7 +36,30 @@ class ServerRunner:
                 )
         return port
 
+    def _kill_process_on_port(self, port):
+        if sys.platform != "win32":
+            return
+        try:
+            result = subprocess.run(
+                ["netstat", "-ano"],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.split("\n"):
+                if f":{port}" in line and "LISTENING" in line:
+                    parts = line.strip().split()
+                    if parts:
+                        pid = parts[-1]
+                        if pid.isdigit():
+                            subprocess.run(
+                                ["taskkill", "/F", "/PID", pid],
+                                capture_output=True, timeout=5,
+                            )
+        except Exception:
+            pass
+
     def start_backend(self):
+        self._kill_process_on_port(self.backend_port)
+
         if self.check_port(self.backend_port):
             port = self.backend_port
         else:
@@ -123,6 +146,40 @@ class ServerRunner:
     def frontend_is_running(self):
         return self.is_running(self.frontend_process)
 
+    def _read_stderr(self, process):
+        if process is None or process.stdout is None:
+            return ""
+        try:
+            remaining = process.stdout.read()
+            if remaining:
+                lines = remaining.split("\n")
+                error_lines = [l for l in lines if "error" in l.lower() or "traceback" in l.lower() or "errno" in l.lower()]
+                if error_lines:
+                    detail = "\n".join(error_lines[-5:])
+                else:
+                    detail = "\n".join(lines[-5:])
+                return self._translate_errors(detail)
+        except Exception:
+            pass
+        return ""
+
+    def _translate_errors(self, text):
+        lower = text.lower()
+        if "errno 10048" in lower or "address already in use" in lower or "only one usage" in lower:
+            return (
+                "Port 8001 is already in use.\n\n"
+                "This usually means The AI Counsel is already running.\n"
+                "Close any other launcher windows and try again.\n"
+                "If the problem persists, restart your computer."
+            )
+        if "errno 10061" in lower or "connection refused" in lower:
+            return "The backend could not start. Check your firewall settings."
+        if "traceback" in lower and "importerror" in lower:
+            return "A Python package is missing. Run the setup wizard again."
+        if "no module" in lower:
+            return f"A Python module is missing.\n{text}"
+        return text
+
     def poll_health(self, status_callback):
         backend_ok = False
         frontend_ok = False
@@ -137,7 +194,9 @@ class ServerRunner:
             elapsed = time.time() - start
             if elapsed > timeout:
                 if not self.backend_is_running():
-                    status_callback("error", "Backend process crashed. Check your configuration.")
+                    detail = self._read_stderr(self.backend_process)
+                    msg = f"Backend process crashed.\n{detail}" if detail else "Backend process crashed. Check your configuration."
+                    status_callback("error", msg)
                 elif not self.frontend_is_running():
                     status_callback("error", "Frontend process crashed. Check your Node.js installation.")
                 else:
@@ -146,7 +205,9 @@ class ServerRunner:
 
             if not backend_ok:
                 if not self.backend_is_running():
-                    status_callback("error", "Backend stopped unexpectedly.")
+                    detail = self._read_stderr(self.backend_process)
+                    msg = f"Backend stopped unexpectedly.\n{detail}" if detail else "Backend stopped unexpectedly."
+                    status_callback("error", msg)
                     return False
                 try:
                     resp = urllib.request.urlopen(
