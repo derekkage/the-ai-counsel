@@ -89,6 +89,8 @@ class ServerRunner:
         return self.backend_port
 
     def start_frontend(self):
+        self._kill_process_on_port(self.frontend_port)
+
         if self.check_port(self.frontend_port):
             port = self.frontend_port
         else:
@@ -227,7 +229,7 @@ class ServerRunner:
                     return False
                 try:
                     resp = urllib.request.urlopen(
-                        f"http://127.0.0.1:{self.frontend_port}",
+                        f"http://localhost:{self.frontend_port}",
                         timeout=2,
                     )
                     if resp.status == 200:
