@@ -569,6 +569,22 @@ class LauncherApp:
             self._stop_servers()
             self.root.destroy()
 
+    def _get_git_branch(self, repo_path):
+        try:
+            startupinfo = None
+            if sys.platform == "win32":
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=repo_path,
+                capture_output=True, text=True, timeout=10,
+                startupinfo=startupinfo,
+            )
+            return result.stdout.strip()
+        except Exception:
+            return "main"
+
     def _check_updates(self):
         repo_path = self._get_repo_path()
         if not repo_path:
@@ -582,6 +598,9 @@ class LauncherApp:
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+                branch = self._get_git_branch(repo_path)
+                remote_ref = f"origin/{branch}"
+
                 subprocess.run(
                     ["git", "fetch", "origin"],
                     cwd=repo_path,
@@ -591,7 +610,7 @@ class LauncherApp:
                 )
 
                 result = subprocess.run(
-                    ["git", "rev-list", "--count", "HEAD..origin/main"],
+                    ["git", "rev-list", "--count", f"HEAD..{remote_ref}"],
                     cwd=repo_path,
                     capture_output=True,
                     text=True,
@@ -629,13 +648,15 @@ class LauncherApp:
                     startupinfo = subprocess.STARTUPINFO()
                     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
+                branch = self._get_git_branch(repo_path)
+
                 self.root.after(0, lambda: (
                     self._update_status.set("Updating..."),
                     self._update_btn.config(state=tk.DISABLED),
                 ))
 
                 result = subprocess.run(
-                    ["git", "pull", "origin", "main"],
+                    ["git", "pull", "origin", branch],
                     cwd=repo_path,
                     capture_output=True,
                     text=True,

@@ -401,7 +401,7 @@ class SetupWizard:
             try:
                 os.makedirs(self.repo_path, exist_ok=True)
                 proc = subprocess.Popen(
-                    ["git", "clone", "https://github.com/derekkage/the-ai-counsel.git", self.repo_path],
+                    ["git", "clone", "-b", "fix/path-traversal-and-error-handling", "https://github.com/derekkage/the-ai-counsel.git", self.repo_path],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     universal_newlines=True,
