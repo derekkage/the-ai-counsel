@@ -382,10 +382,20 @@ class SetupWizard:
             self.status_queue.put(("setp", 2, "done"))
             return True
 
+        if os.path.isdir(self.repo_path) and len(os.listdir(self.repo_path)) > 0:
+            self.status_queue.put(
+                ("error",
+                 "The chosen folder is not empty.\n\n"
+                 f'"{self.repo_path}" already contains files.\n\n'
+                 "Please choose an empty folder or a new location.")
+            )
+            return False
+
         self._set_progress(10, "Downloading The AI Counsel...")
 
         clone_done = threading.Event()
         clone_ok = [False]
+        git_output = []
 
         def clone():
             try:
@@ -403,6 +413,7 @@ class SetupWizard:
                         proc.terminate()
                         clone_done.set()
                         return
+                    git_output.append(line)
                     if "Receiving objects" in line:
                         self._set_progress(12, "Downloading: receiving files...")
                     elif "Resolving deltas" in line:
@@ -413,8 +424,13 @@ class SetupWizard:
                     self._set_progress(15, "App downloaded successfully!")
                     self.status_queue.put(("setp", 2, "done"))
                 else:
+                    last_lines = "".join(git_output[-5:]).strip()
+                    detail = last_lines if last_lines else "(no error output from git)"
                     self.status_queue.put(
-                        ("error", "Failed to download the app. Check your internet connection and try again.")
+                        ("error",
+                         f"Failed to download the app.\n\n"
+                         f"Git said:\n{detail}\n\n"
+                         f"Check your internet connection and firewall settings.")
                     )
             except Exception as e:
                 self.status_queue.put(
