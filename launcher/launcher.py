@@ -88,9 +88,9 @@ class LauncherApp:
         self._PIL_ImageDraw = None
         self._PIL_ImageFont = None
 
-        self._backend_status = tk.StringVar(value="Not started")
-        self._frontend_status = tk.StringVar(value="Not started")
-        self._update_status = tk.StringVar(value="Checking...")
+        self._backend_status = None
+        self._frontend_status = None
+        self._update_status = None
         self._error_log_path = None
 
     def _ensure_deps(self):
@@ -214,6 +214,10 @@ class LauncherApp:
         self.root.title(APP_NAME)
         self.root.geometry("480+350")
         self.root.resizable(False, False)
+
+        self._backend_status = tk.StringVar(value="Not started")
+        self._frontend_status = tk.StringVar(value="Not started")
+        self._update_status = tk.StringVar(value="Checking...")
 
         if sys.platform == "win32":
             try:
