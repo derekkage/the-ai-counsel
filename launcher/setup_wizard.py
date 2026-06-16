@@ -502,8 +502,8 @@ class SetupWizard:
 
         npm_exe = "npm.cmd" if sys.platform == "win32" else "npm"
         proc = subprocess.Popen(
-            [npm_exe, "install", "--prefix", "frontend"],
-            cwd=self.repo_path,
+            [npm_exe, "install"],
+            cwd=os.path.join(self.repo_path, "frontend"),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             startupinfo=startupinfo,
