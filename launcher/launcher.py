@@ -212,7 +212,7 @@ class LauncherApp:
     def run(self):
         self.root = tk.Tk()
         self.root.title(APP_NAME)
-        self.root.geometry("480+350")
+        self.root.geometry("480x350")
         self.root.resizable(False, False)
 
         self._backend_status = tk.StringVar(value="Not started")
