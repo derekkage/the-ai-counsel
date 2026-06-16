@@ -254,8 +254,7 @@ class LauncherApp:
             self.root,
             text=header_text,
             font=("Segoe UI", 18, "bold"),
-            pady=(16, 4),
-        ).pack(fill=tk.X)
+        ).pack(fill=tk.X, pady=(16, 4))
         tk.Label(
             self.root,
             text="Your local AI council is ready to launch.",
