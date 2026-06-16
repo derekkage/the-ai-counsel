@@ -20,7 +20,7 @@ _PIL_ImageFont = None
 
 APP_NAME = "The AI Counsel Launcher"
 REPO_URL = "https://github.com/derekkage/the-ai-counsel"
-FRONTEND_URL = "http://127.0.0.1:5173"
+FRONTEND_URL = "http://localhost:5173"
 
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _LOG_PATH = os.path.join(_SCRIPT_DIR, "launcher-crash.log")

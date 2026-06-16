@@ -104,7 +104,7 @@ class ServerRunner:
 
         npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
         self.frontend_process = subprocess.Popen(
-            [npm_cmd, "run", "dev"],
+            [npm_cmd, "run", "dev", "--", "--host", "127.0.0.1"],
             cwd=os.path.join(self.repo_path, "frontend"),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
